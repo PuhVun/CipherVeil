@@ -41,50 +41,26 @@ const checkConnectionBtn = document.getElementById('checkConnection');
 
 // Load settings when the popup opens
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize chrome.storage mock for testing in browser
-  if (!chrome.storage) {
-    chrome.storage = {
-      local: {
-        get: (keys, callback) => {
-          callback(state);
-        },
-        set: (obj, callback) => {
-          Object.assign(state, obj);
-          if (callback) callback();
-        }
+  // Load settings directly from chrome.storage.local
+  if (chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['sites', 'models', 'methods', 'piis'], (stored) => {
+      if (stored) {
+        if (Array.isArray(stored.sites) && stored.sites.length > 0) state.sites = stored.sites;
+        if (Array.isArray(stored.models) && stored.models.length > 0) state.models = stored.models;
+        if (Array.isArray(stored.methods) && stored.methods.length > 0) state.methods = stored.methods;
+        if (Array.isArray(stored.piis) && stored.piis.length > 0) state.piis = stored.piis;
       }
-    };
-  }
-
-  if (!chrome.runtime) {
-    chrome.runtime = {
-      sendMessage: (message, callback) => {
-        callback(state);
-      }
-    };
-  }
-
-  // Load settings
-  chrome.runtime.sendMessage({ action: 'getSettings' }, (response) => {
-    if (response) {
-      // Load multi-select values if available
-      if (response.sites) state.sites = response.sites;
-      if (response.models) state.models = response.models;
-      if (response.methods) state.methods = response.methods;
-      if (response.piis) state.piis = response.piis;
-    }
-    
-    // If no settings were found, use the defaults from the state object
-    
-    // Update UI for multi-selects
+      
+      // Setup dropdowns and UI
+      setupDropdowns();
+      updateAllSelections();
+      sendConfigToBackend();
+    });
+  } else {
+    setupDropdowns();
     updateAllSelections();
-    
-    // Send the initial configuration to backend (including defaults)
     sendConfigToBackend();
-  });
-  
-  // Setup dropdowns
-  setupDropdowns();
+  }
   
   // Check connection to the Python backend
   checkConnection();
@@ -195,24 +171,6 @@ function updateSelectionUI(dropdownName) {
       
       tag.querySelector('.remove').addEventListener('click', (e) => {
         e.stopPropagation();
-        // Find and uncheck the checkbox - fix the id generation
-        let itemId = item.toLowerCase().replace(/\s+/g, '-');
-        // Remove 's' at the end for specific types that might cause issues
-        if (dropdownName === 'piis') {
-          // For PIIs, the HTML IDs are like "pii-name" not "pii-names"
-          if (itemId === 'names') itemId = 'name';
-          else if (itemId === 'emails') itemId = 'email';
-          else if (itemId === 'addresses') itemId = 'address';
-          else if (itemId === 'phone-numbers') itemId = 'phone';
-          // SSN already correct
-        }
-        
-        const checkbox = document.getElementById(`${dropdownName.slice(0, -1)}-${itemId}`);
-        if (checkbox) {
-          checkbox.checked = false;
-        } else {
-          console.warn(`Checkbox not found: ${dropdownName.slice(0, -1)}-${itemId}`);
-        }
         updateSelection(dropdownName, item, false);
       });
       

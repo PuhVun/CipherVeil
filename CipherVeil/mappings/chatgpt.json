@@ -119,5 +119,227 @@
       },
       "config": {}
     }
+  ],
+  "https://chatgpt.com/?utm_source=google&utm_medium=paid_search&c_id=22370388714&c_agid=177344203135&c_crid=741704613486&c_kwid=kwd-1927227100722&c_ims=&c_pms=9061896&c_nw=g&c_dvc=c&gad_source=1&gad_campaignid=22370388714&gbraid=0AAAAA-I0E5fsHpyh_c64VnnzIVBxWjk0x&gclid=CjwKCAjw0LzWBhBOEiwAKQd0cH2jVE3IkyvsvArUKJ3LK3UWF55PdqhvTklsxLnzLkSI3JSHEMUOxxoCDXEQAvD_BwE": [
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    }
+  ],
+  "https://chatgpt.com/c/6acfda4d-795c-83ee-8b5a-de325f423884": [
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "CINDY": "SAMMMM"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Patricia Jenkins": "Samvritha Devarajan",
+        "tammyferguson@example.com": "sam@test.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "richard96@example.net": "sam@gmail.com",
+        "Marie Strickland": "samvritha devarajan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "parkeradrian@example.org": "sam@gmail.com",
+        "Melissa Baker": "samvritha devarajan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Tiffany": "tharun",
+        "lisalewis@example.net": "tm@example.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    }
+  ],
+  "conv:6acfda4d-795c-83ee-8b5a-de325f423884": [
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "CINDY": "SAMMMM"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Patricia Jenkins": "Samvritha Devarajan",
+        "tammyferguson@example.com": "sam@test.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "richard96@example.net": "sam@gmail.com",
+        "Marie Strickland": "samvritha devarajan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "parkeradrian@example.org": "sam@gmail.com",
+        "Melissa Baker": "samvritha devarajan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Tiffany": "tharun",
+        "lisalewis@example.net": "tm@example.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    }
+  ],
+  "https://chatgpt.com/": [
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "CINDY": "SAMMMM"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Patricia Jenkins": "Samvritha Devarajan",
+        "tammyferguson@example.com": "sam@test.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "redact",
+      "mapping": {
+        "[REDACTED_PERSON]": "SAMMMM",
+        "[REDACTED_PHONE_NUMBER]": "123-456-7890"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "richard96@example.net": "sam@gmail.com",
+        "Marie Strickland": "samvritha devarajan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "parkeradrian@example.org": "sam@gmail.com",
+        "Melissa Baker": "samvritha devarajan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Tiffany": "tharun",
+        "lisalewis@example.net": "tm@example.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {},
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Pam Soto": "samvritha devarajan",
+        "Travis Daugherty": "my phone",
+        "(265)911-5086": "1234567890"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Angela": "Sam",
+        "richard32@example.com": "sam@gmail.com"
+      },
+      "config": {}
+    }
+  ],
+  "https://chatgpt.com": [
+    {
+      "anonymization_method": "redact",
+      "mapping": {
+        "[REDACTED_PERSON]": "SAMMMM",
+        "[REDACTED_PHONE_NUMBER]": "123-456-7890"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Pam Soto": "samvritha devarajan",
+        "Travis Daugherty": "my phone",
+        "(265)911-5086": "1234567890"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Angela": "Sam",
+        "richard32@example.com": "sam@gmail.com"
+      },
+      "config": {}
+    }
   ]
 }

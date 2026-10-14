@@ -1,448 +1,462 @@
-// content.js - Chrome Extension Content Script for ProseMirror integration with deanonymization
+// content.js - Chrome Extension Content Script for Automatic Anonymization & Deanonymization
 
 // Global variable to store mappings
 let deanonymizationMappings = {};
+let isAutoSending = false;
 
-// Get mappings from the background script
+// Default button markup
+const defaultButtonContent = `
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </svg>
+  <span>Auto-Shield On</span>
+`;
+
+// Safely update ProseMirror editor content so ChatGPT internal state recognizes changes
+function setEditorText(editor, newText) {
+  if (!editor) return;
+  editor.focus();
+  
+  let success = false;
+  try {
+    document.execCommand('selectAll', false, null);
+    success = document.execCommand('insertText', false, newText);
+  } catch (e) {
+    console.warn('execCommand insertText failed, falling back to innerHTML', e);
+  }
+  
+  if (!success || editor.textContent.trim() !== newText.trim()) {
+    const escaped = newText
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+    editor.innerHTML = `<p>${escaped}</p>`;
+  }
+  
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  editor.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Fetch all mappings from background
 function fetchMappings() {
   chrome.runtime.sendMessage({ action: 'getMappings' }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error('Error fetching mappings:', chrome.runtime.lastError.message);
+    if (chrome.runtime.lastError || !response || response.error) {
       return;
     }
-    
-    if (response.error) {
-      console.error('Error fetching mappings:', response.error);
-      return;
-    }
-    
     if (response.mappings) {
-      console.log('Deanonymization mappings loaded successfully:', Object.keys(response.mappings).length, 'URLs');
       deanonymizationMappings = response.mappings;
-      
-      // Process any existing content with new mappings
       processResponses();
     }
   });
 }
 
 // Listen for mapping updates from background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'updateMappings') {
-    console.log('Received updated mappings:', Object.keys(message.mappings).length, 'URLs');
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === 'updateMappings' && message.mappings) {
     deanonymizationMappings = message.mappings;
-    
-    // Process content with new mappings
+    resetDeanonymizationFlags();
     processResponses();
   }
 });
 
-// Create and place the button
-function createProcessButton() {
-  // First check if button already exists to avoid duplicates
-  if (document.getElementById('prosemirror-api-button')) {
-    return;
-  }
+// Aggregate all known mappings across the current URL and all sessions
+function getAllMappings(currentUrl) {
+  const combined = {};
   
-  // Find the ProseMirror div
-  const proseMirrorDiv = document.querySelector('div.ProseMirror');
-  if (!proseMirrorDiv) {
-    return; // Wait until ProseMirror is available
-  }
-  
-  // Create the button
-  const apiButton = document.createElement('button');
-  apiButton.id = 'prosemirror-api-button';
-  apiButton.style.display = 'flex';
-  apiButton.style.alignItems = 'center';
-  apiButton.style.justifyContent = 'center';
-  apiButton.style.margin = '10px 0';
-  apiButton.style.padding = '8px';
-  apiButton.style.backgroundColor = '#ffffff';
-  apiButton.style.color = 'black';
-  apiButton.style.border = '1px solid #000';
-  apiButton.style.borderRadius = '18px';
-  apiButton.style.cursor = 'pointer';
-  apiButton.style.width = '36px';
-  apiButton.style.height = '36px';
-  
-  // Create an <img> element for the icon
-  const incognitoIcon = document.createElement('img');
-  incognitoIcon.src = 'https://cdn-icons-png.flaticon.com/512/6463/6463397.png'; // Replace with your downloaded icon path
-  incognitoIcon.alt = 'Incognito Mode';
-  
-  // Append the icon to the button
-  apiButton.appendChild(incognitoIcon);
-  
-  
-  // Insert the button after ProseMirror div
-  proseMirrorDiv.parentNode.insertBefore(apiButton, proseMirrorDiv.nextSibling);
-  
-  // Add click event listener
-apiButton.addEventListener('click', async () => {
-  try {
-    // Extract text from ProseMirror div
-    const text = proseMirrorDiv.textContent;
-    
-    // Show loading state
-    const originalHtml = apiButton.innerHTML; // Save original HTML with icon
-    apiButton.innerHTML = '<span style="font-size: 12px;">Processing...</span>';
-    apiButton.disabled = true;
-    
-    // Get current URL
-    const currentUrl = window.location.href;
-    
-    // Send message to background script
-    chrome.runtime.sendMessage(
-      {
-        action: 'processText',
-        text: text,
-        url: currentUrl
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.error(chrome.runtime.lastError.message);
-          apiButton.innerHTML = '<span style="font-size: 10px;">Error!</span>';
-          apiButton.style.backgroundColor = '#ff4444';
-          setTimeout(() => {
-            apiButton.innerHTML = originalHtml; // Restore original icon
-            apiButton.style.backgroundColor = '#ffffff';
-            apiButton.disabled = false;
-          }, 3000);
-          return;
-        }
-        
-        if (response.error) {
-          console.error(response.error);
-          apiButton.innerHTML = '<span style="font-size: 10px;">Error!</span>';
-          apiButton.style.backgroundColor = '#ff4444';
-          setTimeout(() => {
-            apiButton.innerHTML = originalHtml; // Restore original icon
-            apiButton.style.backgroundColor = '#ffffff';
-            apiButton.disabled = false;
-          }, 3000);
-          return;
-        }
-        
-        // Update the ProseMirror div with the API response
-        proseMirrorDiv.textContent = response.processedText || 'No response text';
-        
-        // Reset button state
-        apiButton.innerHTML = originalHtml; // Restore original icon
-        apiButton.disabled = false;
-        
-        // Fetch updated mappings
-        fetchMappings();
+  // 1. Prioritize current conversation / URL match
+  const bestUrl = findBestUrlMatch(currentUrl);
+  if (bestUrl && Array.isArray(deanonymizationMappings[bestUrl])) {
+    deanonymizationMappings[bestUrl].forEach(entry => {
+      if (entry && entry.mapping) {
+        Object.assign(combined, entry.mapping);
       }
-    );
-  } catch (error) {
-    console.error('Error processing text:', error);
-    apiButton.innerHTML = '<span style="font-size: 10px;">Error!</span>';
-    apiButton.style.backgroundColor = '#ff4444';
-    setTimeout(() => {
-      apiButton.innerHTML = originalHtml; // Restore original icon
-      apiButton.style.backgroundColor = '#ffffff';
-      apiButton.disabled = false;
-    }, 3000);
+    });
   }
-});
+  
+  // 2. Also pool all mappings for any chatgpt conversation in this session
+  for (const [key, entries] of Object.entries(deanonymizationMappings)) {
+    if (Array.isArray(entries)) {
+      entries.forEach(entry => {
+        if (entry && entry.mapping) {
+          for (const [fakeVal, realVal] of Object.entries(entry.mapping)) {
+            if (!combined[fakeVal]) {
+              combined[fakeVal] = realVal;
+            }
+          }
+        }
+      });
+    }
+  }
+  
+  return combined;
 }
 
 // Function to find the best URL match for deanonymization
 function findBestUrlMatch(currentUrl) {
-  // If there's an exact match, use it
-  if (deanonymizationMappings[currentUrl]) {
-    return currentUrl;
-  }
+  if (!currentUrl) return null;
   
-  // Extract the conversation ID from the URL if it's a ChatGPT URL
+  if (deanonymizationMappings[currentUrl]) return currentUrl;
+  
+  const cleanUrl = currentUrl.split('?')[0].split('#')[0].replace(/\/+$/, '');
+  if (deanonymizationMappings[cleanUrl]) return cleanUrl;
+  
   const match = currentUrl.match(/chatgpt\.com\/c\/([a-zA-Z0-9-]+)/);
   if (match) {
-    const conversationId = match[1];
-    
-    // Look for any URL containing this conversation ID
+    const convId = match[1];
+    if (deanonymizationMappings[`conv:${convId}`]) return `conv:${convId}`;
     for (const url in deanonymizationMappings) {
-      if (url.includes(conversationId)) {
-        return url;
-      }
+      if (url.includes(convId)) return url;
     }
   }
   
-  // If no match found, return null
+  if (deanonymizationMappings['https://chatgpt.com']) return 'https://chatgpt.com';
+  if (deanonymizationMappings['https://chatgpt.com/']) return 'https://chatgpt.com/';
+  
+  const chatgptUrls = Object.keys(deanonymizationMappings).filter(u => u.includes('chatgpt.com'));
+  if (chatgptUrls.length > 0) return chatgptUrls[chatgptUrls.length - 1];
+  
   return null;
 }
 
-// Function to deanonymize text based on mappings
+// De-anonymize text using all active mappings
 function deanonymizeText(text, url) {
   if (!text || typeof text !== 'string') return text;
   
-  // Find the best URL match
-  const bestMatchUrl = findBestUrlMatch(url);
-  if (!bestMatchUrl) {
-    console.log(`No mappings found for URL: ${url}`);
-    return text;
-  }
+  const mappings = getAllMappings(url);
+  const keys = Object.keys(mappings);
+  if (keys.length === 0) return text;
   
-  const urlMappings = deanonymizationMappings[bestMatchUrl];
-  if (!urlMappings || !Array.isArray(urlMappings)) {
-    console.log(`Invalid mappings for URL: ${bestMatchUrl}`);
-    return text;
-  }
-  
-  console.log(`Applying mappings for URL: ${bestMatchUrl}`);
   let deanonymizedText = text;
   
-  // Apply all mapping groups for this URL
-  urlMappings.forEach((mappingGroup, index) => {
-    if (!mappingGroup.mapping) {
-      console.warn(`Mapping group ${index} has no mapping property`);
-      return;
-    }
+  // Sort keys from longest to shortest to prevent partial substring collisions
+  const sortedKeys = keys.sort((a, b) => b.length - a.length);
+  
+  for (const anonymized of sortedKeys) {
+    const original = mappings[anonymized];
+    if (!anonymized || !original) continue;
     
-    const mapping = mappingGroup.mapping;
-    
-    // Replace each anonymized string with its original value
-    for (const [anonymized, original] of Object.entries(mapping)) {
-      // Create a regular expression to match the anonymized string (word boundary to match whole words)
-      try {
-        const regex = new RegExp('\\b' + anonymized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
-        const beforeCount = (deanonymizedText.match(regex) || []).length;
-        deanonymizedText = deanonymizedText.replace(regex, original);
-        const afterCount = (deanonymizedText.match(new RegExp('\\b' + original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g')) || []).length;
-        
-        if (beforeCount > 0) {
-          console.log(`Replaced "${anonymized}" with "${original}" (${beforeCount} -> ${afterCount})`);
-        }
-      } catch (e) {
-        console.error(`Error creating regex for "${anonymized}":`, e);
-      }
+    try {
+      const escaped = anonymized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // For alphanumeric words use word boundaries; for emails/redactions match token directly
+      const isWord = /^[A-Za-z0-9_]+$/.test(anonymized);
+      const regex = isWord 
+        ? new RegExp('\\b' + escaped + '\\b', 'gi')
+        : new RegExp(escaped, 'gi');
+      
+      deanonymizedText = deanonymizedText.replace(regex, original);
+    } catch (e) {
+      deanonymizedText = deanonymizedText.split(anonymized).join(original);
     }
-  });
+  }
   
   return deanonymizedText;
 }
 
-// Process responses that need deanonymization
+// Process responses and user messages that need deanonymization
 function processResponses() {
   const currentUrl = window.location.href;
+  const isStreaming = document.querySelector('button[aria-label="Stop generating"], button[data-testid="stop-button"], .result-streaming') !== null;
   
-  // Process sent messages
-  const sentElements = document.getElementsByClassName("whitespace-pre-wrap");
-  for (let i = 0; i < sentElements.length; i++) {
-    const element = sentElements[i];
-    
-    // Skip if already processed
-    if (element.dataset.deanonymized === 'true') {
-      continue;
-    }
-    
-    const originalText = element.textContent;
-    const deanonymizedText = deanonymizeText(originalText, currentUrl);
-    
-    // Update text if it changed
-    if (deanonymizedText !== originalText) {
-      element.textContent = deanonymizedText;
-      console.log('Sent message deanonymized');
-    }
-    
-    // Mark as processed
-    element.dataset.deanonymized = 'true';
-  }
-  
-  // Also try to find messages with different class names
-  const alternativeSentSelectors = [
-    '.whitespace-pre-wrap', 
-    '.message-content',
-    '[data-message-author-role="user"] p',
-    '[data-testid="conversation-turn-user"] p'
+  // Assistant response selectors
+  const assistantSelectors = [
+    '[data-message-author-role="assistant"]',
+    '.prose',
+    '.markdown',
+    '[data-testid*="conversation-turn-assistant"]'
   ];
   
-  alternativeSentSelectors.forEach(selector => {
+  assistantSelectors.forEach(selector => {
     try {
       const elements = document.querySelectorAll(selector);
-      for (let i = 0; i < elements.length; i++) {
-        const element = elements[i];
-        
-        // Skip if already processed
-        if (element.dataset.deanonymized === 'true') {
-          continue;
-        }
-        
-        const originalText = element.textContent;
-        const deanonymizedText = deanonymizeText(originalText, currentUrl);
-        
-        // Update text if it changed
-        if (deanonymizedText !== originalText) {
-          element.textContent = deanonymizedText;
-          console.log(`Sent message deanonymized using selector: ${selector}`);
-        }
-        
-        // Mark as processed
-        element.dataset.deanonymized = 'true';
-      }
-    } catch (err) {
-      console.warn(`Error processing selector ${selector}:`, err);
-    }
-  });
-  
-  // Process received messages
-  const receivedElements = document.getElementsByClassName("prose");
-  for (let i = 0; i < receivedElements.length; i++) {
-    const element = receivedElements[i];
-    
-    // Skip if already processed
-    if (element.dataset.deanonymized === 'true') {
-      continue;
-    }
-    
-    const originalText = element.textContent;
-    const deanonymizedText = deanonymizeText(originalText, currentUrl);
-    
-    // Update text if it changed
-    if (deanonymizedText !== originalText) {
-      // Use innerHTML to preserve formatting
-      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-      let node;
-      
-      while (node = walker.nextNode()) {
-        const nodeText = node.nodeValue;
-        const nodeDeanonymized = deanonymizeText(nodeText, currentUrl);
-        if (nodeText !== nodeDeanonymized) {
-          node.nodeValue = nodeDeanonymized;
-        }
-      }
-      
-      console.log('Received message deanonymized');
-    }
-    
-    // Mark as processed
-    element.dataset.deanonymized = 'true';
-  }
-  
-  // Also try to find responses with different class names
-  const alternativeReceivedSelectors = [
-    '.prose', 
-    '.markdown-content',
-    '[data-message-author-role="assistant"] p',
-    '[data-testid="conversation-turn-assistant"] p'
-  ];
-  
-  alternativeReceivedSelectors.forEach(selector => {
-    try {
-      const elements = document.querySelectorAll(selector);
-      for (let i = 0; i < elements.length; i++) {
-        const element = elements[i];
-        
-        // Skip if already processed
-        if (element.dataset.deanonymized === 'true') {
-          continue;
-        }
+      elements.forEach(element => {
+        if (!isStreaming && element.dataset.deanonymized === 'true') return;
         
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-        let hasChanges = false;
         let node;
+        let hasChanges = false;
         
         while (node = walker.nextNode()) {
-          const nodeText = node.nodeValue;
-          const nodeDeanonymized = deanonymizeText(nodeText, currentUrl);
-          if (nodeText !== nodeDeanonymized) {
-            node.nodeValue = nodeDeanonymized;
+          const original = node.nodeValue;
+          const deanonymized = deanonymizeText(original, currentUrl);
+          if (original !== deanonymized) {
+            node.nodeValue = deanonymized;
+            hasChanges = true;
+          }
+        }
+        
+        if (!isStreaming && hasChanges) {
+          element.dataset.deanonymized = 'true';
+        }
+      });
+    } catch (err) {
+      console.warn('Error processing assistant responses:', err);
+    }
+  });
+
+  // User sent message selectors
+  const userSelectors = [
+    '[data-message-author-role="user"]',
+    '.whitespace-pre-wrap',
+    '[data-testid*="conversation-turn-user"]'
+  ];
+
+  userSelectors.forEach(selector => {
+    try {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => {
+        if (element.dataset.deanonymized === 'true') return;
+        
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let node;
+        let hasChanges = false;
+        
+        while (node = walker.nextNode()) {
+          const original = node.nodeValue;
+          const deanonymized = deanonymizeText(original, currentUrl);
+          if (original !== deanonymized) {
+            node.nodeValue = deanonymized;
             hasChanges = true;
           }
         }
         
         if (hasChanges) {
-          console.log(`Received message deanonymized using selector: ${selector}`);
+          element.dataset.deanonymized = 'true';
         }
-        
-        // Mark as processed
-        element.dataset.deanonymized = 'true';
-      }
+      });
     } catch (err) {
-      console.warn(`Error processing selector ${selector}:`, err);
+      console.warn('Error processing user messages:', err);
     }
   });
 }
 
-// Function to check and ensure the button exists
+function resetDeanonymizationFlags() {
+  document.querySelectorAll('[data-deanonymized="true"]').forEach(element => {
+    element.dataset.deanonymized = 'false';
+  });
+}
+
+// Core Automatic Shielding & Submission Handler
+async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
+  const currentUrl = window.location.href;
+  const statusBtn = document.getElementById('prosemirror-api-button');
+  
+  if (statusBtn) {
+    statusBtn.innerHTML = '<span>Auto-Shielding...</span>';
+    statusBtn.style.borderColor = '#38bdf8';
+  }
+  
+  chrome.runtime.sendMessage({
+    action: 'processText',
+    text: rawText,
+    url: currentUrl
+  }, (response) => {
+    if (response && response.changed && response.processedText) {
+      setEditorText(editor, response.processedText);
+      if (statusBtn) {
+        statusBtn.innerHTML = '<span style="color:#4ade80;">✓ Auto-Shielded!</span>';
+        statusBtn.style.borderColor = '#4ade80';
+        setTimeout(() => {
+          if (statusBtn) {
+            statusBtn.innerHTML = defaultButtonContent;
+            statusBtn.style.borderColor = '#475569';
+          }
+        }, 2500);
+      }
+    } else {
+      if (statusBtn) {
+        statusBtn.innerHTML = defaultButtonContent;
+        statusBtn.style.borderColor = '#475569';
+      }
+    }
+    
+    // Invalidate and refresh mappings immediately so responses are de-anonymized live
+    fetchMappings();
+    
+    // Proceed with actual ChatGPT submission
+    isAutoSending = true;
+    setTimeout(() => {
+      if (typeof submitCallback === 'function') {
+        submitCallback();
+      } else {
+        const sendButton = document.querySelector('button[data-testid="send-button"], button[aria-label*="Send"], form button[type="submit"]');
+        if (sendButton && !sendButton.disabled) {
+          sendButton.click();
+        }
+      }
+      
+      setTimeout(() => {
+        isAutoSending = false;
+      }, 500);
+    }, 60);
+  });
+}
+
+// Setup Automatic Event Interceptors on Enter key & Send button
+function setupAutoInterceptors() {
+  // 1. Intercept Enter key on the ChatGPT prompt editor
+  document.addEventListener('keydown', (e) => {
+    if (isAutoSending) return;
+    
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      const editor = document.querySelector('div.ProseMirror, #prompt-textarea');
+      if (!editor) return;
+      
+      if (!editor.contains(e.target) && e.target !== editor) return;
+      
+      const text = (editor.textContent || editor.innerText || '').trim();
+      if (!text) return;
+      
+      // Stop un-anonymized submission
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      
+      autoAnonymizeAndSend(editor, text, () => {
+        const sendButton = document.querySelector('button[data-testid="send-button"], button[aria-label*="Send"], form button[type="submit"]');
+        if (sendButton && !sendButton.disabled) {
+          sendButton.click();
+        } else {
+          // Fallback enter trigger
+          editor.focus();
+          editor.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
+          }));
+        }
+      });
+    }
+  }, true); // Capture phase to intercept before ChatGPT catches it
+
+  // 2. Intercept mouse clicks on ChatGPT's Send button
+  document.addEventListener('click', (e) => {
+    if (isAutoSending) return;
+    
+    const sendBtn = e.target.closest('button[data-testid="send-button"], button[aria-label*="Send"], button[aria-label*="send"]');
+    if (!sendBtn) return;
+    
+    const editor = document.querySelector('div.ProseMirror, #prompt-textarea');
+    if (!editor) return;
+    
+    const text = (editor.textContent || editor.innerText || '').trim();
+    if (!text) return;
+    
+    // Stop un-anonymized click
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    
+    autoAnonymizeAndSend(editor, text, () => {
+      sendBtn.click();
+    });
+  }, true); // Capture phase
+}
+
+// Create and place the status button (allows optional manual click as well)
+function createProcessButton() {
+  if (document.getElementById('prosemirror-api-button')) return;
+  
+  const proseMirrorDiv = document.querySelector('div.ProseMirror, #prompt-textarea');
+  if (!proseMirrorDiv) return;
+  
+  const apiButton = document.createElement('button');
+  apiButton.id = 'prosemirror-api-button';
+  apiButton.title = 'CipherVeil: Automatically shields prompts before sending. Click to manual shield anytime.';
+  apiButton.style.display = 'inline-flex';
+  apiButton.style.alignItems = 'center';
+  apiButton.style.justifyContent = 'center';
+  apiButton.style.gap = '6px';
+  apiButton.style.margin = '8px 4px';
+  apiButton.style.padding = '6px 12px';
+  apiButton.style.backgroundColor = '#1e293b';
+  apiButton.style.color = '#f8fafc';
+  apiButton.style.border = '1px solid #475569';
+  apiButton.style.borderRadius = '20px';
+  apiButton.style.cursor = 'pointer';
+  apiButton.style.fontSize = '12px';
+  apiButton.style.fontWeight = '500';
+  apiButton.style.transition = 'all 0.2s ease';
+  apiButton.style.boxShadow = '0 2px 4px rgba(0,0,0,0.15)';
+  apiButton.style.zIndex = '100';
+
+  apiButton.innerHTML = defaultButtonContent;
+
+  const targetParent = proseMirrorDiv.parentNode;
+  if (targetParent) {
+    targetParent.insertBefore(apiButton, proseMirrorDiv.nextSibling);
+  }
+  
+  apiButton.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const text = (proseMirrorDiv.textContent || proseMirrorDiv.innerText || '').trim();
+    if (!text) return;
+    
+    apiButton.innerHTML = '<span>Shielding...</span>';
+    
+    chrome.runtime.sendMessage({
+      action: 'processText',
+      text: text,
+      url: window.location.href
+    }, (response) => {
+      if (response && response.changed) {
+        setEditorText(proseMirrorDiv, response.processedText);
+        apiButton.innerHTML = '<span style="color:#4ade80;">✓ Shielded!</span>';
+        setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2500);
+      } else {
+        apiButton.innerHTML = '<span style="color:#fbbf24;">No PII Detected</span>';
+        setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2000);
+      }
+      fetchMappings();
+    });
+  });
+}
+
 function ensureButtonExists() {
   if (!document.getElementById('prosemirror-api-button')) {
     createProcessButton();
   }
 }
 
-// Function to reset deanonymization flags
-function resetDeanonymizationFlags() {
-  // This allows text to be reprocessed with new mappings
-  document.querySelectorAll('[data-deanonymized="true"]').forEach(element => {
-    element.dataset.deanonymized = 'false';
-  });
-}
-
-// Initial setup
-async function initialize() {
-  // Load the mappings first
-  await fetchMappings();
+function startObserver() {
+  const target = document.body || document.documentElement;
+  if (!target) {
+    setTimeout(startObserver, 100);
+    return;
+  }
   
-  // Then set up the rest of the extension
-  createProcessButton();
-  processResponses();
-  
-  // Set up interval to ensure button always exists and to process new responses (every 2 seconds)
-  setInterval(() => {
+  const observer = new MutationObserver(() => {
     ensureButtonExists();
     processResponses();
-  }, 2000);
-  
-  // Set up interval to periodically fetch new mappings (every 3 seconds)
-  setInterval(() => {
-    fetchMappings();
-  }, 3000);
-  
-  // Set up MutationObserver to detect DOM changes
-  const observer = new MutationObserver((mutations) => {
-    // Check if new elements were added that we care about
-    let needToCreateButton = false;
-    let needToProcessResponses = false;
-    
-    for (const mutation of mutations) {
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        // Check added nodes
-        for (let i = 0; i < mutation.addedNodes.length; i++) {
-          const node = mutation.addedNodes[i];
-          if (node.nodeType !== Node.ELEMENT_NODE) continue;
-          
-          // Check if ProseMirror was added
-          if (node.classList && node.classList.contains('ProseMirror') || 
-              node.querySelector && node.querySelector('.ProseMirror')) {
-            needToCreateButton = true;
-          }
-          
-          // Check if response was added
-          if (node.classList && (node.classList.contains('whitespace-pre-wrap') || node.classList.contains('prose')) || 
-              node.querySelector && (node.querySelector('.whitespace-pre-wrap') || node.querySelector('.prose'))) {
-            needToProcessResponses = true;
-          }
-        }
-      }
-    }
-    
-    // Update as needed
-    if (needToCreateButton) {
-      ensureButtonExists();
-    }
-    
-    if (needToProcessResponses) {
-      processResponses();
-    }
   });
   
-  // Start observing
-  observer.observe(document.body, {
+  observer.observe(target, {
     childList: true,
     subtree: true
   });
 }
 
-// Start the initialization process
-initialize();
+// Initial setup
+async function initialize() {
+  fetchMappings();
+  ensureButtonExists();
+  processResponses();
+  setupAutoInterceptors();
+  
+  setInterval(() => {
+    ensureButtonExists();
+    processResponses();
+  }, 1000);
+  
+  setInterval(() => {
+    fetchMappings();
+  }, 3000);
+  
+  startObserver();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initialize);
+} else {
+  initialize();
+}

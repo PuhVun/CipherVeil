@@ -11,7 +11,9 @@
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
-    "https://api.openai.com/*"
+    "https://api.openai.com/*",
+    "http://localhost:5000/*",
+    "http://127.0.0.1:5000/*"
   ],  
   "action": {
     "default_popup": "popup/popup.html",
@@ -38,7 +40,7 @@
       "js": [
         "content.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ]
 }

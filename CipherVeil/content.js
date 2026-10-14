@@ -12,30 +12,85 @@ const defaultButtonContent = `
   <span>Auto-Shield On</span>
 `;
 
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.replace(/[&<>'"]/g, 
+    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+  );
+}
+
+function getPromptEditor() {
+  return document.querySelector('#prompt-textarea, div.ProseMirror, div[contenteditable="true"]');
+}
+
+function getSendButton() {
+  return document.querySelector(
+    'button[data-testid="send-button"], ' +
+    'button[data-testid="fruitjuice-send-button"], ' +
+    'button[aria-label="Send prompt"], ' +
+    'button[aria-label="Send message"], ' +
+    'button[aria-label*="Send"], ' +
+    'button[aria-label*="send"], ' +
+    'form button[type="submit"]'
+  );
+}
+
 // Safely update ProseMirror editor content so ChatGPT internal state recognizes changes
 function setEditorText(editor, newText) {
   if (!editor) return;
   editor.focus();
-  
-  let success = false;
+
+  // 1. Try modern DataTransfer synthetic paste event (supported natively by ProseMirror)
   try {
-    document.execCommand('selectAll', false, null);
-    success = document.execCommand('insertText', false, newText);
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', newText);
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+
+    editor.dispatchEvent(pasteEvent);
   } catch (e) {
-    console.warn('execCommand insertText failed, falling back to innerHTML', e);
+    console.warn('Synthetic paste event error, trying execCommand', e);
   }
-  
-  if (!success || editor.textContent.trim() !== newText.trim()) {
-    const escaped = newText
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
-    editor.innerHTML = `<p>${escaped}</p>`;
+
+  // 2. If text didn't update to newText, try execCommand insertText
+  if (editor.textContent.trim() !== newText.trim()) {
+    try {
+      document.execCommand('selectAll', false, null);
+      document.execCommand('insertText', false, newText);
+    } catch (e) {
+      console.warn('execCommand insertText failed, falling back to innerHTML', e);
+    }
   }
-  
-  editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+  // 3. Fallback innerHTML
+  if (editor.textContent.trim() !== newText.trim()) {
+    const formattedHTML = newText
+      .split('\n')
+      .map(line => `<p>${line === '' ? '<br>' : escapeHTML(line)}</p>`)
+      .join('');
+    editor.innerHTML = formattedHTML;
+  }
+
+  // 4. Dispatch InputEvent & keyup so ProseMirror, React, and ChatGPT re-render and enable Send button
+  editor.dispatchEvent(new InputEvent('input', {
+    bubbles: true,
+    cancelable: true,
+    inputType: 'insertText',
+    data: newText
+  }));
   editor.dispatchEvent(new Event('change', { bubbles: true }));
+  editor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ' ' }));
 }
 
 // Fetch all mappings from background
@@ -251,7 +306,23 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
     text: rawText,
     url: currentUrl
   }, (response) => {
-    if (response && response.changed && response.processedText) {
+    if (chrome.runtime.lastError || !response || response.error) {
+      console.error('CipherVeil backend error:', response?.error || chrome.runtime.lastError?.message);
+      if (statusBtn) {
+        statusBtn.innerHTML = '<span style="color:#ef4444;">⚠️ Backend Offline</span>';
+        statusBtn.style.borderColor = '#ef4444';
+        setTimeout(() => {
+          if (statusBtn) {
+            statusBtn.innerHTML = defaultButtonContent;
+            statusBtn.style.borderColor = '#475569';
+          }
+        }, 3000);
+      }
+      return; // Stop submission if backend is unreachable to prevent leaking secrets!
+    }
+
+    if (response.changed && response.processedText) {
+      console.log('[CipherVeil] Shielded prompt:', rawText, '->', response.processedText);
       setEditorText(editor, response.processedText);
       if (statusBtn) {
         statusBtn.innerHTML = '<span style="color:#4ade80;">✓ Auto-Shielded!</span>';
@@ -273,13 +344,13 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
     // Invalidate and refresh mappings immediately so responses are de-anonymized live
     fetchMappings();
     
-    // Proceed with actual ChatGPT submission
+    // Allow ProseMirror and React enough time (200ms) to sync virtual DOM state
     isAutoSending = true;
     setTimeout(() => {
       if (typeof submitCallback === 'function') {
         submitCallback();
       } else {
-        const sendButton = document.querySelector('button[data-testid="send-button"], button[aria-label*="Send"], form button[type="submit"]');
+        const sendButton = getSendButton();
         if (sendButton && !sendButton.disabled) {
           sendButton.click();
         }
@@ -288,7 +359,7 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
       setTimeout(() => {
         isAutoSending = false;
       }, 500);
-    }, 60);
+    }, 200);
   });
 }
 
@@ -299,7 +370,7 @@ function setupAutoInterceptors() {
     if (isAutoSending) return;
     
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-      const editor = document.querySelector('div.ProseMirror, #prompt-textarea');
+      const editor = getPromptEditor();
       if (!editor) return;
       
       if (!editor.contains(e.target) && e.target !== editor) return;
@@ -313,11 +384,10 @@ function setupAutoInterceptors() {
       e.stopImmediatePropagation();
       
       autoAnonymizeAndSend(editor, text, () => {
-        const sendButton = document.querySelector('button[data-testid="send-button"], button[aria-label*="Send"], form button[type="submit"]');
+        const sendButton = getSendButton();
         if (sendButton && !sendButton.disabled) {
           sendButton.click();
         } else {
-          // Fallback enter trigger
           editor.focus();
           editor.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
@@ -331,10 +401,18 @@ function setupAutoInterceptors() {
   document.addEventListener('click', (e) => {
     if (isAutoSending) return;
     
-    const sendBtn = e.target.closest('button[data-testid="send-button"], button[aria-label*="Send"], button[aria-label*="send"]');
+    const sendBtn = e.target.closest(
+      'button[data-testid="send-button"], ' +
+      'button[data-testid="fruitjuice-send-button"], ' +
+      'button[aria-label="Send prompt"], ' +
+      'button[aria-label="Send message"], ' +
+      'button[aria-label*="Send"], ' +
+      'button[aria-label*="send"], ' +
+      'form button[type="submit"]'
+    );
     if (!sendBtn) return;
     
-    const editor = document.querySelector('div.ProseMirror, #prompt-textarea');
+    const editor = getPromptEditor();
     if (!editor) return;
     
     const text = (editor.textContent || editor.innerText || '').trim();
@@ -346,7 +424,8 @@ function setupAutoInterceptors() {
     e.stopImmediatePropagation();
     
     autoAnonymizeAndSend(editor, text, () => {
-      sendBtn.click();
+      const btn = getSendButton() || sendBtn;
+      btn.click();
     });
   }, true); // Capture phase
 }
@@ -355,7 +434,7 @@ function setupAutoInterceptors() {
 function createProcessButton() {
   if (document.getElementById('prosemirror-api-button')) return;
   
-  const proseMirrorDiv = document.querySelector('div.ProseMirror, #prompt-textarea');
+  const proseMirrorDiv = getPromptEditor();
   if (!proseMirrorDiv) return;
   
   const apiButton = document.createElement('button');
@@ -389,7 +468,8 @@ function createProcessButton() {
     e.preventDefault();
     e.stopPropagation();
     
-    const text = (proseMirrorDiv.textContent || proseMirrorDiv.innerText || '').trim();
+    const editor = getPromptEditor() || proseMirrorDiv;
+    const text = (editor.textContent || editor.innerText || '').trim();
     if (!text) return;
     
     apiButton.innerHTML = '<span>Shielding...</span>';
@@ -400,7 +480,8 @@ function createProcessButton() {
       url: window.location.href
     }, (response) => {
       if (response && response.changed) {
-        setEditorText(proseMirrorDiv, response.processedText);
+        console.log('[CipherVeil Manual] Shielded:', text, '->', response.processedText);
+        setEditorText(editor, response.processedText);
         apiButton.innerHTML = '<span style="color:#4ade80;">✓ Shielded!</span>';
         setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2500);
       } else {

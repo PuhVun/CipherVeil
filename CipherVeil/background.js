@@ -15,7 +15,7 @@ async function fetchMappings(force = false) {
       return mappingsCache;
     }
     
-    const response = await fetch('http://localhost:5000/get_mappings');
+    const response = await fetch('http://127.0.0.1:5000/get_mappings');
     if (!response.ok) {
       throw new Error(`Failed to fetch mappings: ${response.status} ${response.statusText}`);
     }
@@ -43,7 +43,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         ? stored.piis 
         : ["Names", "Emails", "Phone Numbers", "Addresses", "SSN"];
 
-      fetch('http://localhost:5000/anonymize', {
+      fetch('http://127.0.0.1:5000/task_aware_transform', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,8 +51,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         body: JSON.stringify({
           text: request.text,
           url: request.url,
-          anonymization_method: method,
-          piis: piis
+          config: stored || {}
         }),
       })
       .then(response => {
@@ -62,12 +61,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return response.json();
       })
       .then(data => {
-        const processedText = data.anonymized_text || data.text || request.text;
+        const processedText = data.sanitized_text || data.text || request.text;
         const changed = processedText !== request.text;
+        console.log('[CipherVeil Background] Task:', data.task_type, '| Strategy:', data.privacy_strategy);
+        console.log('[CipherVeil Background] Raw:', request.text);
+        console.log('[CipherVeil Background] Shielded:', processedText);
+        if (data.can_answer_locally) {
+          console.log('[CipherVeil Background] Can Answer Locally:', data.local_answer);
+        }
+
         sendResponse({ 
           processedText: processedText,
           changed: changed,
-          mappingCount: Object.keys(data.mapping || {}).length
+          canAnswerLocally: !!data.can_answer_locally,
+          localAnswer: data.local_answer,
+          taskType: data.task_type,
+          privacyStrategy: data.privacy_strategy,
+          privacyExplanation: data.privacy_explanation,
+          mappingCount: Object.keys(data.mappings || {}).length,
+          detectedEntities: data.detected_entities || [],
+          requiresUserReview: !!data.requires_user_review
         });
         
         // Reset cache so new mapping is immediately available
@@ -117,6 +130,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // When extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extension installed or updated. Fetching initial mappings...');
-  fetchMappings().catch(err => console.error('Initial mappings fetch failed:', err));
+  console.log('[CipherVeil] Extension installed or updated. Initializing connection to 127.0.0.1:5000...');
+  fetchMappings().catch(err => console.warn('[CipherVeil] Initial mappings fetch deferred (start backend if not running):', err.message));
 });

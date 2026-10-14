@@ -71,8 +71,8 @@ checkConnectionBtn.addEventListener('click', checkConnection);
 
 async function checkConnection() {
   try {
-    // Replace with your actual backend API URL
-    const response = await fetch('http://localhost:5000/health', {
+    // Use 127.0.0.1 to avoid macOS AirPlay receiver conflict on localhost:5000
+    const response = await fetch('http://127.0.0.1:5000/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -207,7 +207,7 @@ async function sendConfigToBackend() {
     
     console.log('Sending config to backend:', config);
     
-    const response = await fetch('http://localhost:5000/config', {
+    const response = await fetch('http://127.0.0.1:5000/config', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -271,7 +271,7 @@ function updateToggleUI(isEnabled) {
 // Send extension status to backend
 async function sendExtensionStatusToBackend(isEnabled) {
   try {
-    const response = await fetch('http://localhost:5000/status', {
+    const response = await fetch('http://127.0.0.1:5000/status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

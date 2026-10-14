@@ -313,6 +313,106 @@
         "richard32@example.com": "sam@gmail.com"
       },
       "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "YOUR_API_KEY_HERE": "sk-proj-abc12345678901234567890",
+        "630433936840": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "YOUR_API_KEY_HERE": "sk-proj-abc12345678901234567890",
+        "630433936840": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Anthony": "my",
+        "Emily Daniel": "saro and",
+        "changtheodore@example.net": "saro67@mail.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Anthony": "my",
+        "Emily Daniel": "saro and",
+        "changtheodore@example.net": "saro67@mail.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Jonathan": "saro",
+        "iarnold@example.net": "saro67@mail.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Jennifer": "Jonathan",
+        "zwalsh@example.org": "iarnold@example.net"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Christina": "Jonathan",
+        "stephanieburke@example.org": "iarnold@example.net"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4111 **** **** 1111 (Visa card)": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4111 **** **** 1111 (Visa card)": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "[Age: 36 years old]": "1990-05-14"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "[Age: 36 years old]": "1990-05-14"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "SYNTAX_PRESERVING_PLACEHOLDER",
+      "mapping": {
+        "sk-proj-YOUR_OPENAI_KEY_PLACEHOLDER": "sk-proj-abc12345678901234567890"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "SYNTAX_PRESERVING_PLACEHOLDER",
+      "mapping": {
+        "sk-proj-YOUR_OPENAI_KEY_PLACEHOLDER": "sk-proj-abc12345678901234567890"
+      },
+      "config": {}
     }
   ],
   "https://chatgpt.com": [
@@ -338,6 +438,42 @@
       "mapping": {
         "Angela": "Sam",
         "richard32@example.com": "sam@gmail.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Jonathan": "saro",
+        "iarnold@example.net": "saro67@mail.com"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Jennifer": "Jonathan",
+        "zwalsh@example.org": "iarnold@example.net"
+      },
+      "config": {}
+    }
+  ],
+  "https://chatgpt.com/c/6ad004e7-4240-83ec-b385-107cec23b265": [
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Christina": "Jonathan",
+        "stephanieburke@example.org": "iarnold@example.net"
+      },
+      "config": {}
+    }
+  ],
+  "conv:6ad004e7-4240-83ec-b385-107cec23b265": [
+    {
+      "anonymization_method": "fake",
+      "mapping": {
+        "Christina": "Jonathan",
+        "stephanieburke@example.org": "iarnold@example.net"
       },
       "config": {}
     }

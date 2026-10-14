@@ -1,10 +1,12 @@
+import sys
+sys.dont_write_bytecode = True
+
 # pyrefly: ignore [missing-import]
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
 import re
-import sys
 from faker import Faker
 # pyrefly: ignore [missing-import]
 from presidio_analyzer import AnalyzerEngine, EntityRecognizer, RecognizerResult
@@ -80,9 +82,11 @@ class EnhancedPersonRecognizer(EntityRecognizer):
                 
         return results
 
-# Initialize Presidio engines
-analyzer = AnalyzerEngine()
-analyzer.registry.add_recognizer(EnhancedPersonRecognizer())
+from task_aware.detection import TaskAwareDetectionEngine
+
+# Initialize detection engine with Presidio + SecretsRecognizer + DOBRecognizer + FinancialRecognizer
+detection_engine = TaskAwareDetectionEngine()
+analyzer = detection_engine.analyzer
 anonymizer = AnonymizerEngine()
 
 def normalize_url(url):
@@ -148,14 +152,26 @@ def get_fake_value(entity_type, original_value):
         return fake.credit_card_number()
     elif entity_type == "US_SSN":
         return fake.ssn()
-    elif entity_type == "US_BANK_NUMBER":
+    elif entity_type in ["US_BANK_NUMBER", "BANK_ACCOUNT"]:
         return fake.bban()
+    elif entity_type == "ROUTING_NUMBER":
+        return "011000015"
     elif entity_type == "LOCATION":
         return fake.city()
     elif entity_type == "IP_ADDRESS":
         return fake.ipv4()
     elif entity_type == "DATE_TIME":
         return fake.date()
+    elif entity_type == "DATE_OF_BIRTH":
+        return fake.date()
+    elif entity_type == "API_KEY":
+        return "YOUR_API_KEY_HERE"
+    elif entity_type == "PASSWORD_CREDENTIAL":
+        return "YOUR_PASSWORD_HERE"
+    elif entity_type == "DATABASE_URL":
+        return "postgresql://user:password@localhost:5432/dbname"
+    elif entity_type == "CRYPTO_KEY":
+        return "-----BEGIN PRIVATE KEY-----\n[REDACTED_PRIVATE_KEY]\n-----END PRIVATE KEY-----"
     else:
         return f"FAKE_{entity_type}"
 
@@ -193,7 +209,12 @@ def update_config():
             "Emails": "EMAIL_ADDRESS",
             "Phone Numbers": "PHONE_NUMBER",
             "Addresses": "LOCATION",
-            "SSN": "US_SSN"
+            "SSN": "US_SSN",
+            "Credit Cards": "CREDIT_CARD",
+            "Dates of Birth": "DATE_OF_BIRTH",
+            "API Keys & Secrets": "API_KEY",
+            "Passwords": "PASSWORD_CREDENTIAL",
+            "Bank Accounts": "BANK_ACCOUNT"
         }
         
         selected_entities = []
@@ -218,6 +239,21 @@ def update_config():
         print(f"Error updating configuration: {e}", flush=True)
         return jsonify({"error": str(e)}), 500
 
+@app.route('/detect_sensitive', methods=['POST'])
+def detect_sensitive():
+    """Endpoint for detecting sensitive PII, technical credentials, and financial identifiers."""
+    data = request.json or {}
+    text = data.get('text', '')
+    if not text:
+        return jsonify({"entities": [], "count": 0})
+    
+    entities = detection_engine.detect(text)
+    return jsonify({
+        "status": "ok",
+        "entities": entities,
+        "count": len(entities)
+    })
+
 @app.route('/anonymize', methods=['POST'])
 def anonymize_text():
     data = request.json or {}
@@ -236,7 +272,12 @@ def anonymize_text():
         "Emails": "EMAIL_ADDRESS",
         "Phone Numbers": "PHONE_NUMBER",
         "Addresses": "LOCATION",
-        "SSN": "US_SSN"
+        "SSN": "US_SSN",
+        "Credit Cards": "CREDIT_CARD",
+        "Dates of Birth": "DATE_OF_BIRTH",
+        "API Keys & Secrets": "API_KEY",
+        "Passwords": "PASSWORD_CREDENTIAL",
+        "Bank Accounts": "BANK_ACCOUNT"
     }
 
     if data.get('piis'):
@@ -255,22 +296,19 @@ def anonymize_text():
     if anonymization_method not in ['redact', 'fake']:
         anonymization_method = 'fake'
     
-    # Presidio analysis
-    analyzer_results = analyzer.analyze(
+    # Detection using TaskAwareDetectionEngine (Presidio + Secrets + DOB + Financial)
+    detected_entities = detection_engine.detect(
         text=text,
-        entities=selected_entities,
+        requested_entities=selected_entities,
         language="en"
     )
 
-    # Filter out overlapping spans
-    filtered_results = filter_overlapping_spans(analyzer_results)
-    
     value_mapping = {}  # Maps original -> replacement
     mapping = {}        # Maps replacement -> original (for de-anonymization)
     
-    for result in filtered_results:
-        entity_type = result.entity_type
-        original_value = text[result.start:result.end]
+    for item in detected_entities:
+        entity_type = item['entity_type']
+        original_value = item['text']
         
         if original_value not in value_mapping:
             if anonymization_method == "redact":
@@ -283,10 +321,10 @@ def anonymize_text():
     
     # Apply replacements from right to left to preserve offsets
     anonymized_text = text
-    for result in sorted(filtered_results, key=lambda x: x.start, reverse=True):
-        original_value = text[result.start:result.end]
+    for item in sorted(detected_entities, key=lambda x: x['start'], reverse=True):
+        original_value = item['text']
         replacement = value_mapping.get(original_value, original_value)
-        anonymized_text = anonymized_text[:result.start] + replacement + anonymized_text[result.end:]
+        anonymized_text = anonymized_text[:item['start']] + replacement + anonymized_text[item['end']:]
     
     # Store mappings
     mappings = load_chatgpt_mappings()
@@ -321,7 +359,8 @@ def anonymize_text():
     return jsonify({
         "anonymized_text": anonymized_text,
         "mapping": mapping,
-        "anonymization_method": anonymization_method
+        "anonymization_method": anonymization_method,
+        "detected_entities": detected_entities
     })
 
 @app.route('/deanonymize', methods=['POST'])
@@ -368,6 +407,48 @@ def deanonymize_text():
         "deanonymized_text": deanonymized_text,
         "anonymization_method": anonymization_method
     })
+
+from task_aware.pipeline import TaskAwarePipeline
+from task_aware.evaluation import TaskAwareEvaluator
+
+task_aware_pipeline = TaskAwarePipeline()
+task_aware_evaluator = TaskAwareEvaluator()
+
+@app.route('/task_aware_transform', methods=['POST'])
+def task_aware_transform():
+    """Task-Aware transformation endpoint implementing the full pipeline."""
+    data = request.json or {}
+    text = data.get('text', '')
+    raw_url = data.get('url', '')
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+    
+    result = task_aware_pipeline.process(text, raw_url)
+    
+    # Store mappings for de-anonymization
+    if result.get("mappings"):
+        mappings = load_chatgpt_mappings()
+        new_entry = {
+            "anonymization_method": result.get("privacy_strategy", "task_aware"),
+            "mapping": result["mappings"],
+            "config": data.get("config", {})
+        }
+        clean_url = normalize_url(raw_url)
+        if clean_url not in mappings:
+            mappings[clean_url] = []
+        mappings[clean_url].append(new_entry)
+        if GENERIC_URL not in mappings:
+            mappings[GENERIC_URL] = []
+        mappings[GENERIC_URL].append(new_entry)
+        save_chatgpt_mappings(mappings)
+        
+    return jsonify(result)
+
+@app.route('/evaluate', methods=['GET', 'POST'])
+def run_evaluations():
+    """Runs the automated benchmark evaluation suite and returns metrics."""
+    report = task_aware_evaluator.run_evaluations()
+    return jsonify(report)
 
 if __name__ == '__main__':
     print("Starting CipherVeil Flask Backend on http://127.0.0.1:5000", flush=True)

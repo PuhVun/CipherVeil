@@ -14,7 +14,12 @@ from presidio_analyzer import AnalyzerEngine, EntityRecognizer, RecognizerResult
 from presidio_anonymizer import AnonymizerEngine
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for Chrome extension
+# Explicitly allow chrome-extension:// origins (bare CORS(app) blocks extension preflight requests)
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+}})
 
 # Initialize Faker
 fake = Faker()
@@ -34,9 +39,35 @@ class EnhancedPersonRecognizer(EntityRecognizer):
         self.greetings = re.compile(r'\b(?:hey+|hi+|hello+|dear|hola|howdy|yo+)\s+([A-Za-z0-9_-]+)', re.IGNORECASE)
         self.intros = re.compile(r'\b(?:i\s+am|my\s+name\s+is|this\s+is|call\s+me|i\'m|im)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)', re.IGNORECASE)
         self.common_names = {
-            'sam', 'sami', 'samvritha', 'devarajan', 'shashank', 'singh',
-            'rahul', 'priya', 'aarav', 'ananya', 'alex', 'john', 'david',
-            'sarah', 'emily', 'michael', 'jessica', 'karen', 'robert'
+            # South Indian names
+            'pavan', 'sarvanan', 'saravanan', 'saro', 'sam', 'sami', 'samvritha',
+            'devarajan', 'shashank', 'ravi', 'suresh', 'ramesh', 'mahesh', 'ganesh',
+            'rajesh', 'naresh', 'dinesh', 'lokesh', 'mukesh', 'umesh', 'girish',
+            'karthik', 'karthikeyan', 'murugan', 'venkat', 'venkatesh', 'vignesh',
+            'arun', 'arunesh', 'arjun', 'vijay', 'siva', 'shiva', 'kumar', 'senthil',
+            'balaji', 'bala', 'prakash', 'harish', 'anand', 'pradeep', 'deepak',
+            'jagan', 'mani', 'selvam', 'kannan', 'krishna', 'vasanth', 'gokul',
+            'naveen', 'naveen', 'nithya', 'divya', 'sowmya', 'kavitha', 'meena',
+            'priya', 'deepa', 'divya', 'nisha', 'sangeetha', 'sumitha', 'saranya',
+            'lavanya', 'pooja', 'revathi', 'anitha', 'indira', 'padma', 'rani',
+            # North Indian names
+            'singh', 'rahul', 'rohan', 'rohit', 'amit', 'sumit', 'nitin', 'sanjay',
+            'vijay', 'ajay', 'ajay', 'rajan', 'aarav', 'ananya', 'priya',
+            'neha', 'pooja', 'ria', 'nisha', 'sneha', 'megha', 'swati',
+            # Western / Global names
+            'alex', 'john', 'david', 'sarah', 'emily', 'michael', 'jessica',
+            'karen', 'robert', 'james', 'mary', 'patricia', 'linda', 'barbara',
+            'richard', 'joseph', 'thomas', 'charles', 'daniel', 'matthew',
+            'mark', 'donald', 'paul', 'andrew', 'joshua', 'kevin', 'brian',
+            'george', 'edward', 'ronald', 'timothy', 'jason', 'jeffrey',
+            'ryan', 'jacob', 'gary', 'nicholas', 'eric', 'jonathan', 'stephen',
+            'larry', 'justin', 'scott', 'brandon', 'benjamin', 'samuel',
+            'frank', 'gregory', 'raymond', 'jack', 'dennis', 'jerry', 'tyler',
+            'aaron', 'jose', 'adam', 'henry', 'nathan', 'douglas', 'zachary',
+            'peter', 'kyle', 'noah', 'ethan', 'emma', 'olivia', 'ava', 'sophia',
+            'isabella', 'mia', 'abigail', 'madison', 'harper', 'charlotte',
+            'jennifer', 'amanda', 'ashley', 'dorothy', 'helen', 'sandra', 'donna',
+            'carol', 'ruth', 'sharon', 'michelle', 'laura', 'lisa', 'nancy',
         }
         
     def load(self):
@@ -46,12 +77,25 @@ class EnhancedPersonRecognizer(EntityRecognizer):
         results = []
         if 'PERSON' not in entities:
             return results
+
+        # Common words that should never be treated as names
+        _non_names = {
+            'there', 'everyone', 'everybody', 'guys', 'all', 'bot', 'assistant',
+            'my', 'the', 'i', 'am', 'is', 'it', 'a', 'an', 'me', 'we', 'us',
+            'he', 'she', 'they', 'you', 'your', 'our', 'his', 'her', 'its',
+            'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where',
+            'can', 'could', 'will', 'would', 'do', 'does', 'did', 'have', 'has',
+            'was', 'were', 'been', 'be', 'not', 'no', 'yes', 'so', 'if', 'or',
+            'and', 'but', 'to', 'of', 'in', 'on', 'at', 'for', 'with', 'from',
+            'up', 'out', 'off', 'by', 'about', 'just', 'need', 'help', 'want',
+            'name', 'please', 'thanks', 'thank', 'sorry', 'good', 'bad', 'new',
+        }
             
         # 1. Names following greetings (e.g., "HEYYYY SAMMMM", "hey alex")
         for match in self.greetings.finditer(text):
             word = match.group(1)
-            # Avoid matching words like "there", "everyone", "guys", "all"
-            if word.lower() not in {'there', 'everyone', 'everybody', 'guys', 'all', 'bot', 'assistant'}:
+            # Avoid matching common words like "my", "there", "everyone"
+            if word.lower() not in _non_names:
                 results.append(RecognizerResult(
                     entity_type='PERSON',
                     start=match.start(1),

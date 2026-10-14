@@ -413,6 +413,120 @@
         "sk-proj-YOUR_OPENAI_KEY_PLACEHOLDER": "sk-proj-abc12345678901234567890"
       },
       "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Gina": "pavan",
+        "Alan": "my"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4532 **** **** 0366 (Visa card)": "4532015112830366"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "[Age: 31 years old]": "14th March 1995"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "SYNTAX_PRESERVING_PLACEHOLDER",
+      "mapping": {
+        "REDACTED_PERSON": "getting a",
+        "sk-proj-YOUR_OPENAI_KEY_PLACEHOLDER": "sk-proj-abc123XYZsecretkey9876"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Joseph": "pavan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Melinda": "pavan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Lucas": "sarvanan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Kristy": "pavan",
+        "Shawn": "my"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Jonathon": "pavan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Bradley": "adam"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4532 **** **** 0366 (Visa card)": "4532015112830366"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "PROPERTY_PRESERVING_MASK",
+      "mapping": {
+        "[REDACTED_PHONE_NUMBER]": "021000021",
+        "[REDACTED_DATE_TIME]": "123456789"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "SELECTIVE_REDACTION",
+      "mapping": {
+        "[PATIENT_DOB]": "02/11/1982",
+        "[PATIENT_NAME]": "Sarah"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
     }
   ],
   "https://chatgpt.com": [
@@ -456,6 +570,54 @@
         "zwalsh@example.org": "iarnold@example.net"
       },
       "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Gina": "pavan",
+        "Alan": "my"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Joseph": "pavan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Melinda": "pavan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Lucas": "sarvanan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Kristy": "pavan",
+        "Shawn": "my"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Jonathon": "pavan"
+      },
+      "config": {}
     }
   ],
   "https://chatgpt.com/c/6ad004e7-4240-83ec-b385-107cec23b265": [
@@ -476,6 +638,76 @@
         "stephanieburke@example.org": "iarnold@example.net"
       },
       "config": {}
+    }
+  ],
+  "https://chatgpt.com/c/6ad01056-bb2c-83ec-9d24-29c81c5e9cc6": [
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4532 **** **** 0366 (Visa card)": "4532015112830366"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "[Age: 31 years old]": "14th March 1995"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "SYNTAX_PRESERVING_PLACEHOLDER",
+      "mapping": {
+        "REDACTED_PERSON": "getting a",
+        "sk-proj-YOUR_OPENAI_KEY_PLACEHOLDER": "sk-proj-abc123XYZsecretkey9876"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    }
+  ],
+  "https://chatgpt.com/c/6ad01240-d0ac-83e8-94d5-a8aee5ae9e21": [
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Bradley": "adam"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4532 **** **** 0366 (Visa card)": "4532015112830366"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "PROPERTY_PRESERVING_MASK",
+      "mapping": {
+        "[REDACTED_PHONE_NUMBER]": "021000021",
+        "[REDACTED_DATE_TIME]": "123456789"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "SELECTIVE_REDACTION",
+      "mapping": {
+        "[PATIENT_DOB]": "02/11/1982",
+        "[PATIENT_NAME]": "Sarah"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
     }
   ]
 }

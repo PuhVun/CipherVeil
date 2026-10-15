@@ -546,6 +546,16 @@
       "config": {
         "extensionEnabled": true
       }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "FAKE_DATE_TIME": "2026-10-15",
+        "+1-475-998-2535x095": "026-10-15 08"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
     }
   ],
   "https://chatgpt.com": [
@@ -742,6 +752,18 @@
       "mapping": {
         "[PATIENT_DOB]": "02/11/1982",
         "[PATIENT_NAME]": "Sarah"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    }
+  ],
+  "https://chatgpt.com/c/6ad044ad-e38c-83e8-8a84-fd33e195398e": [
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "FAKE_DATE_TIME": "2026-10-15",
+        "+1-475-998-2535x095": "026-10-15 08"
       },
       "config": {
         "extensionEnabled": true

@@ -595,6 +595,20 @@
         "hannah74@example.com": "john@test.com"
       },
       "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "John": "pavan",
+        "Robin": "im"
+      },
+      "config": {
+        "extensionEnabled": true,
+        "methods": [
+          "Redacting",
+          "Pseudonymization"
+        ]
+      }
     }
   ],
   "https://chatgpt.com": [
@@ -738,6 +752,20 @@
         "4111 **** **** 4444 (Visa card)": "4111 2222 3333 4444"
       },
       "config": {}
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "John": "pavan",
+        "Robin": "im"
+      },
+      "config": {
+        "extensionEnabled": true,
+        "methods": [
+          "Redacting",
+          "Pseudonymization"
+        ]
+      }
     }
   ],
   "https://chatgpt.com/c/6ad004e7-4240-83ec-b385-107cec23b265": [

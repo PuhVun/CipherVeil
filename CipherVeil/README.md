@@ -1,46 +1,198 @@
-# CipherVeil
-Protect your privacy while using AI! This browser extension auto-detects and anonymizes personal data before it's sent to LLMs like ChatGPT & Claude—keeping your identity safe without losing AI’s power!
+<div align="center">
+  <img src="icons/logo_full.png" alt="CipherVeil Logo" width="160" style="border-radius: 20px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.25);" />
 
-## Inspiration
-With the increasing reliance on AI-driven language models like ChatGPT, Claude, DeepSeek and Gemini, privacy concerns are at an all-time high. Users often share sensitive data without realizing the risks of exposure. We wanted to create a solution that allows people to benefit from AI while maintaining full control over their personal information.
+  # CipherVeil
+  **YOUR DATA. OUR SHIELD.**
 
-## What it does
-CipherVeil is a browser extension that anonymizes user data before it is sent to AI model services like www.chatgpt.com, www.claude.ai etc. It detects and replaces personally identifiable information (PII) using an advanced anonymization analyzer. Whether you’re chatting with AI for work, research, or fun, CipherVeil ensures your data stays private across all major browsers and LLMs.
+  *An intelligent, real-time client-side privacy shield that detects, anonymizes, and locally solves sensitive prompts before they ever reach LLM servers.*
 
-## How we built it
-We developed CipherVeil using Flask for the backend and integrated 2 methods: "Presidio Analyzer" and "Mistral 3B model on device" to detect and anonymize PII. The system employs Faker to generate realistic fake data for pseudonymization. Mappings of anonymized data are securely stored, allowing for de-anonymization when needed. We designed it to work seamlessly across various AI platforms and LLM models.
+  [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://python.org)
+  [![Flask](https://img.shields.io/badge/Backend-Flask-green?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+  [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension%20MV3-yellow?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/)
+  [![Presidio](https://img.shields.io/badge/PII%20Engine-Microsoft%20Presidio-blueviolet)](https://github.com/microsoft/presidio)
+  [![License](https://img.shields.io/badge/License-MIT-lightgrey)](../LICENSE)
 
-## Challenges we ran into
-Ensuring accuracy in PII detection: Choosing the Presidio Analyzer to detect different data types effectively.
-Balancing privacy and usability: Anonymizing data while ensuring the AI model still provides meaningful responses.
-Cross-browser compatibility: Making sure the extension works smoothly on Chrome, Firefox, Edge, and more.
-Handling different AI models and websites: Adapting the anonymization process to work effectively with various LLMs services like DeepSeek, Claude, Chatgpt, Gemini required a lot of time and hardwork.
+</div>
 
-## Accomplishments that we're proud of
-1. Successfully developing a real-time anonymization system that works across multiple LLMs services.
-2. Creating a seamless browser extension that integrates easily into users' AI interactions.
-3. Enabling both pseudonymization (fake data replacement) and redaction based on user preferences.
-4. Designing a secure, configurable system that allows users to define what data gets anonymized.
+---
 
-## What we learned
-- The importance of flexibility in privacy settings, as different users have different levels of comfort with data exposure.
-- How to fine-tune AI models for effective entity recognition and anonymization.
-- The challenges of cross-browser and cross-platform development for a privacy-focused tool.
+## 🌟 Overview
 
-## What's next for CipherVeil
-1. Expanding support for more AI models and platforms beyond ChatGPT, and Claude.
-2. Adding user-defined anonymization rules, allowing even more control over privacy.
-3. Enhancing speed and efficiency to ensure real-time performance without delays.
-4. Exploring enterprise-level solutions for businesses handling sensitive data with AI.
+As LLMs like **ChatGPT** and **Claude** become central to daily workflows, users frequently paste confidential data (names, contact info, credit card numbers, API keys, and sensitive dates) into prompts without realizing the privacy risks.
 
+**CipherVeil** bridges this gap:
+1. **Intercepts prompts in the browser** right as you click *Send* or press *Enter*.
+2. **Detects & anonymizes PII** via a local task-aware pipeline (using realistic fake data or redactions).
+3. **Executes deterministic tasks 100% locally** (e.g., credit card brand identification and age calculations are answered on your device—sensitive numbers never leave your machine).
+4. **Seamlessly restores original values in AI responses** so your view remains natural, while AI servers only ever see anonymized tokens.
 
-# SETUP
+---
 
-1. ```git clone https://github.com/PuhVun/CipherVeil.git```
-2. ```cd CipherVeil/CipherVeil```
-3. ```python flaskBackend.py```
-4. Open Chrome
-5. Navigate to ```chrome://extensions/```
-6. Turn on "Developer mode" and click 'Load Unpacked'
-7. Select the folder named "CipherVeil".
-8. Open Chatgpt and you are good to go!!
+## 🛡️ Key Features
+
+- **Auto-Shield for ChatGPT**: Integrated with modern ProseMirror content-editable editors with visual status badges (`Auto-Shield On`, `✓ Auto-Shielded!`, etc.).
+- **Task-Aware Privacy Pipeline**:
+  - **Task Classifier**: Identifies prompt intent (e.g., credit card queries, date calculations, generic queries).
+  - **Custom Recognizers**: Detects credit cards, API secrets/tokens, dates of birth (DOB), conversational name introductions, phone numbers, SSNs, and emails.
+  - **Local Solvers**: Answers sensitive analytical tasks locally (e.g. Luhn checksums and card issuer lookup) with minimal disclosure.
+- **Two Anonymization Modes**:
+  - **Pseudonymization (Default)**: Replaces sensitive entities with realistic synthetic equivalents generated by Faker (maintains grammar and context).
+  - **Redacting**: Replaces sensitive entities with explicit tags (e.g. `[REDACTED_PERSON]`, `[REDACTED_EMAIL_ADDRESS]`).
+- **Live Response De-Anonymization**: Reverses the token mapping on streamed or completed LLM responses directly in the browser DOM.
+- **Fail-Safe Offline Protection**: Automatically suppresses connection drops, prevents submission if privacy cannot be guaranteed, and eliminates extension context errors.
+
+---
+
+## 🏗️ Architecture
+
+```
+                                  [ User Browser ]
+                                         │
+                        1. Types prompt with PII in ChatGPT
+                                         ▼
+                             [ content.js Interceptor ]
+                                         │
+                    2. Sends prompt over localhost (Port 5000)
+                                         ▼
+                              [ Flask Backend Engine ]
+             ┌───────────────────────────┴───────────────────────────┐
+             ▼                                                       ▼
+  [ Task Classifier & Presidio ]                           [ Local Solvers ]
+  - Name & Contact Detection                               - Credit Card BIN check
+  - API Secrets & Tokens                                   - Local math/date logic
+  - Faker Replacement / Redaction                          (Answers without cloud)
+             │                                                       │
+             └───────────────────────────┬───────────────────────────┘
+                                         ▼
+                             3. Sanitized Prompt Returned
+                                         ▼
+                            [ Transmitted to OpenAI ]
+                             (Only sees fake values)
+                                         │
+                         4. Response returned to browser
+                                         ▼
+                              [ content.js Restorer ]
+                         Swaps fake values back to original!
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+
+- **Python 3.10+**
+- **Google Chrome** (or Chromium-based browser)
+
+### 2. Install Backend Dependencies
+
+In PowerShell or Command Prompt:
+
+```powershell
+pip install flask flask-cors faker presidio-analyzer presidio-anonymizer spacy
+python -m spacy download en_core_web_lg
+```
+
+### 3. Run the Backend Server
+
+```powershell
+# Navigate into the project folder
+cd CipherVeil/CipherVeil
+
+# Start the server
+python flaskBackend.py
+```
+The server will start listening at `http://127.0.0.1:5000`.
+
+### 4. Install the Chrome Extension
+
+1. Open Google Chrome and visit:
+   ```text
+   chrome://extensions/
+   ```
+2. Enable **Developer mode** (toggle in the top-right corner).
+3. Click **Load unpacked** (top left).
+4. Select the project directory:
+   ```text
+   C:\Users\Sami\OneDrive\Desktop\cipherVeil\CipherVeil\CipherVeil
+   ```
+5. The **CipherVeil** extension icon will now appear in your browser toolbar!
+
+---
+
+## 🧪 Testing the Shield
+
+### In ChatGPT:
+1. Open [ChatGPT](https://chatgpt.com/).
+2. You will see the **"Auto-Shield On"** badge above the message input box.
+3. Paste a test prompt containing PII:
+   > *"Hello, my name is Alice Smith, my email is alice@example.com, and my phone number is 415-555-1234. Please draft a brief intro."*
+4. Hit **Enter** or click **Send**:
+   - The badge will flash `✓ Auto-Shielded!`.
+   - The prompt sent to OpenAI contains fake placeholder data.
+   - When ChatGPT answers, the response is de-anonymized in your view with your real name!
+
+### Via Terminal:
+```powershell
+$body = @{
+    text = "Hello, my name is John Doe and my email is john.doe@example.com."
+    url = "https://chatgpt.com/"
+    anonymization_method = "fake"
+    piis = @("Names", "Emails")
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://127.0.0.1:5000/anonymize" -Method Post -ContentType "application/json" -Body $body
+```
+
+---
+
+## 📁 Repository Structure
+
+```text
+CipherVeil/
+├── background.js              # Background service worker & localhost bridge
+├── content.js                 # DOM observer, ProseMirror auto-shield, de-anonymizer
+├── flaskBackend.py            # Flask API server & Presidio integration
+├── manifest.json              # Chrome Manifest V3 configuration
+├── icons/                     # CipherVeil brand logos (16, 32, 48, 128, full)
+├── mappings/
+│   └── chatgpt.json           # Active token de-anonymization lookup table
+├── popup/
+│   ├── popup.html             # Extension control center UI
+│   ├── popup.css              # Dark/light theme styling
+│   └── popup.js               # Settings & local storage synchronization
+└── task_aware/                # Task-Aware Privacy Subsystem
+    ├── classification/        # Task intent classification
+    ├── detection/             # Custom PII, financial, & secrets recognizers
+    ├── policy/                # Contextual privacy policy enforcement
+    ├── transformation/        # Local solvers (credit card, dates, masking)
+    ├── validation/            # Output schema validation
+    └── pipeline.py            # Main task-aware orchestrator
+```
+
+---
+
+## ⚙️ Configuration
+
+Open the CipherVeil extension popup from the browser toolbar to customize:
+* **Extension Status**: Toggle auto-shield on or off.
+* **Anonymization Method**: Choose between **Pseudonymization** (synthetic replacements) or **Redacting** (`[REDACTED_...]` tags).
+* **PII Selection**: Individually toggle detection for:
+  - Names
+  - Emails
+  - Phone Numbers
+  - Addresses
+  - SSNs & Financial Data
+
+---
+
+## 🔒 Security & Privacy Notice
+
+* **No Cloud Telemetry**: CipherVeil runs its backend completely on your local machine (`127.0.0.1:5000`). No prompt or mapping data is ever sent to external analytics or telemetry services.
+* **Transient Mappings**: De-anonymization tables are stored on your local disk for session response recovery and can be cleared at any time.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).

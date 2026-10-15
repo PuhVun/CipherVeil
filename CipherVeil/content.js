@@ -7,11 +7,30 @@ let uiInterval = null;
 let mappingInterval = null;
 let domObserver = null;
 let extensionInvalidated = false;
+let keydownHandler = null;
+let clickHandler = null;
+
+// Catch and suppress uncaught extension context invalidated errors from orphaned content scripts
+window.addEventListener('error', (event) => {
+  if (event?.message?.includes('Extension context invalidated')) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    cleanupOnInvalidation();
+  }
+}, true);
+
+window.addEventListener('unhandledrejection', (event) => {
+  if (event?.reason?.message?.includes('Extension context invalidated')) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    cleanupOnInvalidation();
+  }
+}, true);
 
 // Check whether the extension context is still valid (avoids errors after extension reload/update)
 function isExtensionValid() {
   try {
-    return !extensionInvalidated && !!chrome.runtime && !!chrome.runtime.id;
+    return !extensionInvalidated && typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
   } catch {
     return false;
   }
@@ -25,12 +44,30 @@ function safeSendMessage(message, callback) {
   }
   try {
     chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        // Silently handle; might be extension invalidated or backend offline
-        if (typeof callback === 'function') callback(null);
-        return;
+      try {
+        if (!isExtensionValid()) {
+          cleanupOnInvalidation();
+          return;
+        }
+        let lastErr = null;
+        try {
+          lastErr = chrome.runtime.lastError;
+        } catch {
+          cleanupOnInvalidation();
+          return;
+        }
+        if (lastErr) {
+          if (typeof callback === 'function') callback(null);
+          return;
+        }
+        if (typeof callback === 'function') callback(response);
+      } catch (err) {
+        if (err?.message?.includes('Extension context invalidated')) {
+          cleanupOnInvalidation();
+        } else {
+          console.warn('[CipherVeil] Error handling message response:', err);
+        }
       }
-      if (typeof callback === 'function') callback(response);
     });
   } catch (err) {
     if (err?.message?.includes('Extension context invalidated')) {
@@ -39,12 +76,21 @@ function safeSendMessage(message, callback) {
   }
 }
 
-// Cleanup timers and observers when the extension context is invalidated
+// Cleanup timers, observers, and event listeners when the extension context is invalidated
 function cleanupOnInvalidation() {
+  if (extensionInvalidated) return;
   extensionInvalidated = true;
   if (uiInterval) { clearInterval(uiInterval); uiInterval = null; }
   if (mappingInterval) { clearInterval(mappingInterval); mappingInterval = null; }
   if (domObserver) { domObserver.disconnect(); domObserver = null; }
+  if (keydownHandler) {
+    document.removeEventListener('keydown', keydownHandler, true);
+    keydownHandler = null;
+  }
+  if (clickHandler) {
+    document.removeEventListener('click', clickHandler, true);
+    clickHandler = null;
+  }
   console.warn('CipherVeil: Extension context invalidated. Please refresh the page.');
 }
 
@@ -81,19 +127,30 @@ function getSendButton() {
 
 // Safely update ProseMirror editor content so ChatGPT internal state recognizes changes
 function setEditorText(editor, newText) {
-  if (!editor) return;
-  editor.focus();
+  if (!editor || !isExtensionValid()) return;
+  
+  try {
+    editor.focus();
+  } catch (e) {
+    if (e?.message?.includes('Extension context invalidated')) {
+      cleanupOnInvalidation();
+      return;
+    }
+  }
 
   // 1. Try modern DataTransfer synthetic paste event (supported natively by ProseMirror)
   try {
+    if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     const dataTransfer = new DataTransfer();
     dataTransfer.setData('text/plain', newText);
 
     const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
 
     const pasteEvent = new ClipboardEvent('paste', {
       clipboardData: dataTransfer,
@@ -104,8 +161,14 @@ function setEditorText(editor, newText) {
 
     editor.dispatchEvent(pasteEvent);
   } catch (e) {
+    if (e?.message?.includes('Extension context invalidated')) {
+      cleanupOnInvalidation();
+      return;
+    }
     console.warn('Synthetic paste event error, trying execCommand', e);
   }
+
+  if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
 
   // 2. If text didn't update to newText, try execCommand insertText
   if (editor.textContent.trim() !== newText.trim()) {
@@ -113,28 +176,49 @@ function setEditorText(editor, newText) {
       document.execCommand('selectAll', false, null);
       document.execCommand('insertText', false, newText);
     } catch (e) {
+      if (e?.message?.includes('Extension context invalidated')) {
+        cleanupOnInvalidation();
+        return;
+      }
       console.warn('execCommand insertText failed, falling back to innerHTML', e);
     }
   }
 
+  if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
+
   // 3. Fallback innerHTML
   if (editor.textContent.trim() !== newText.trim()) {
-    const formattedHTML = newText
-      .split('\n')
-      .map(line => `<p>${line === '' ? '<br>' : escapeHTML(line)}</p>`)
-      .join('');
-    editor.innerHTML = formattedHTML;
+    try {
+      const formattedHTML = newText
+        .split('\n')
+        .map(line => `<p>${line === '' ? '<br>' : escapeHTML(line)}</p>`)
+        .join('');
+      editor.innerHTML = formattedHTML;
+    } catch (e) {
+      if (e?.message?.includes('Extension context invalidated')) {
+        cleanupOnInvalidation();
+        return;
+      }
+    }
   }
 
+  if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
+
   // 4. Dispatch InputEvent & keyup so ProseMirror, React, and ChatGPT re-render and enable Send button
-  editor.dispatchEvent(new InputEvent('input', {
-    bubbles: true,
-    cancelable: true,
-    inputType: 'insertText',
-    data: newText
-  }));
-  editor.dispatchEvent(new Event('change', { bubbles: true }));
-  editor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ' ' }));
+  try {
+    editor.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: newText
+    }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    editor.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ' ' }));
+  } catch (e) {
+    if (e?.message?.includes('Extension context invalidated')) {
+      cleanupOnInvalidation();
+    }
+  }
 }
 
 // Fetch all mappings from background
@@ -426,8 +510,10 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
 
 // Setup Automatic Event Interceptors on Enter key & Send button
 function setupAutoInterceptors() {
+  if (keydownHandler || clickHandler) return;
+
   // 1. Intercept Enter key on the ChatGPT prompt editor
-  document.addEventListener('keydown', (e) => {
+  keydownHandler = (e) => {
     if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     if (isAutoSending) return;
     
@@ -457,10 +543,10 @@ function setupAutoInterceptors() {
         }
       });
     }
-  }, true); // Capture phase to intercept before ChatGPT catches it
+  };
 
   // 2. Intercept mouse clicks on ChatGPT's Send button
-  document.addEventListener('click', (e) => {
+  clickHandler = (e) => {
     if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     if (isAutoSending) return;
     
@@ -490,7 +576,10 @@ function setupAutoInterceptors() {
       const btn = getSendButton() || sendBtn;
       btn.click();
     });
-  }, true); // Capture phase
+  };
+
+  document.addEventListener('keydown', keydownHandler, true);
+  document.addEventListener('click', clickHandler, true);
 }
 
 // Create and place the status button (allows optional manual click as well)

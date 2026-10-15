@@ -3,16 +3,6 @@
 // Global variable to store mappings
 let deanonymizationMappings = {};
 let isAutoSending = false;
-let mappingInterval = null;
-let uiInterval = null;
-
-function isExtensionValid() {
-  try {
-    return typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
-  } catch (e) {
-    return false;
-  }
-}
 
 // Default button markup
 const defaultButtonContent = `
@@ -105,39 +95,25 @@ function setEditorText(editor, newText) {
 
 // Fetch all mappings from background
 function fetchMappings() {
-  if (!isExtensionValid()) {
-    if (mappingInterval) clearInterval(mappingInterval);
-    return;
-  }
-  try {
-    chrome.runtime.sendMessage({ action: 'getMappings' }, (response) => {
-      if (!isExtensionValid() || chrome.runtime.lastError || !response || response.error) {
-        return;
-      }
-      if (response.mappings) {
-        deanonymizationMappings = response.mappings;
-        processResponses();
-      }
-    });
-  } catch (err) {
-    if (mappingInterval) clearInterval(mappingInterval);
-  }
+  chrome.runtime.sendMessage({ action: 'getMappings' }, (response) => {
+    if (chrome.runtime.lastError || !response || response.error) {
+      return;
+    }
+    if (response.mappings) {
+      deanonymizationMappings = response.mappings;
+      processResponses();
+    }
+  });
 }
 
 // Listen for mapping updates from background script
-if (isExtensionValid()) {
-  try {
-    chrome.runtime.onMessage.addListener((message) => {
-      if (message.action === 'updateMappings' && message.mappings) {
-        deanonymizationMappings = message.mappings;
-        resetDeanonymizationFlags();
-        processResponses();
-      }
-    });
-  } catch (e) {
-    // Context invalidated
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === 'updateMappings' && message.mappings) {
+    deanonymizationMappings = message.mappings;
+    resetDeanonymizationFlags();
+    processResponses();
   }
-}
+});
 
 // Aggregate all known mappings across the current URL and all sessions
 function getAllMappings(currentUrl) {
@@ -320,57 +296,43 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
   const currentUrl = window.location.href;
   const statusBtn = document.getElementById('prosemirror-api-button');
   
-  if (!isExtensionValid()) {
-    console.warn('CipherVeil: Extension reloaded. Please refresh the page.');
-    if (statusBtn) {
-      statusBtn.innerHTML = '<span style="color:#f59e0b;">⚠️ Please refresh page</span>';
-    }
-    return;
-  }
-
   if (statusBtn) {
     statusBtn.innerHTML = '<span>Auto-Shielding...</span>';
     statusBtn.style.borderColor = '#38bdf8';
   }
   
-  try {
-    chrome.runtime.sendMessage({
-      action: 'processText',
-      text: rawText,
-      url: currentUrl
-    }, (response) => {
-      if (!isExtensionValid() || chrome.runtime.lastError || !response || response.error) {
-        console.error('CipherVeil backend error:', response?.error || chrome.runtime.lastError?.message);
-        if (statusBtn) {
-          statusBtn.innerHTML = '<span style="color:#ef4444;">⚠️ Backend Offline</span>';
-          statusBtn.style.borderColor = '#ef4444';
-          setTimeout(() => {
-            if (statusBtn) {
-              statusBtn.innerHTML = defaultButtonContent;
-              statusBtn.style.borderColor = '#475569';
-            }
-          }, 3000);
-        }
-        return; // Stop submission if backend is unreachable to prevent leaking secrets!
-      }
-
-    if (response.changed && response.processedText) {
-      console.log('[CipherVeil] Shielded prompt:', rawText, '->', response.processedText);
-      setEditorText(editor, response.processedText);
+  chrome.runtime.sendMessage({
+    action: 'processText',
+    text: rawText,
+    url: currentUrl
+  }, (response) => {
+    if (chrome.runtime.lastError || !response || response.error) {
+      console.error('CipherVeil backend error:', response?.error || chrome.runtime.lastError?.message);
       if (statusBtn) {
-        if (response.canAnswerLocally) {
-          statusBtn.innerHTML = '<span style="color:#38bdf8;">🛡️ Local Shield: Card Prefix Protected!</span>';
-          statusBtn.style.borderColor = '#38bdf8';
-        } else {
-          statusBtn.innerHTML = '<span style="color:#4ade80;">✓ Auto-Shielded!</span>';
-          statusBtn.style.borderColor = '#4ade80';
-        }
+        statusBtn.innerHTML = '<span style="color:#ef4444;">⚠️ Backend Offline</span>';
+        statusBtn.style.borderColor = '#ef4444';
         setTimeout(() => {
           if (statusBtn) {
             statusBtn.innerHTML = defaultButtonContent;
             statusBtn.style.borderColor = '#475569';
           }
-        }, 3500);
+        }, 3000);
+      }
+      return; // Stop submission if backend is unreachable to prevent leaking secrets!
+    }
+
+    if (response.changed && response.processedText) {
+      console.log('[CipherVeil] Shielded prompt:', rawText, '->', response.processedText);
+      setEditorText(editor, response.processedText);
+      if (statusBtn) {
+        statusBtn.innerHTML = '<span style="color:#4ade80;">✓ Auto-Shielded!</span>';
+        statusBtn.style.borderColor = '#4ade80';
+        setTimeout(() => {
+          if (statusBtn) {
+            statusBtn.innerHTML = defaultButtonContent;
+            statusBtn.style.borderColor = '#475569';
+          }
+        }, 2500);
       }
     } else {
       if (statusBtn) {
@@ -510,33 +472,24 @@ function createProcessButton() {
     const text = (editor.textContent || editor.innerText || '').trim();
     if (!text) return;
     
-    if (!isExtensionValid()) {
-      alert('CipherVeil extension was updated. Please refresh the page.');
-      return;
-    }
-
     apiButton.innerHTML = '<span>Shielding...</span>';
     
-    try {
-      chrome.runtime.sendMessage({
-        action: 'processText',
-        text: text,
-        url: window.location.href
-      }, (response) => {
-        if (response && response.changed) {
-          console.log('[CipherVeil Manual] Shielded:', text, '->', response.processedText);
-          setEditorText(editor, response.processedText);
-          apiButton.innerHTML = '<span style="color:#4ade80;">✓ Shielded!</span>';
-          setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2500);
-        } else {
-          apiButton.innerHTML = '<span style="color:#fbbf24;">No PII Detected</span>';
-          setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2000);
-        }
-        fetchMappings();
-      });
-    } catch (e) {
-      // Context invalidated
-    }
+    chrome.runtime.sendMessage({
+      action: 'processText',
+      text: text,
+      url: window.location.href
+    }, (response) => {
+      if (response && response.changed) {
+        console.log('[CipherVeil Manual] Shielded:', text, '->', response.processedText);
+        setEditorText(editor, response.processedText);
+        apiButton.innerHTML = '<span style="color:#4ade80;">✓ Shielded!</span>';
+        setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2500);
+      } else {
+        apiButton.innerHTML = '<span style="color:#fbbf24;">No PII Detected</span>';
+        setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2000);
+      }
+      fetchMappings();
+    });
   });
 }
 
@@ -566,27 +519,17 @@ function startObserver() {
 
 // Initial setup
 async function initialize() {
-  if (!isExtensionValid()) return;
-
   fetchMappings();
   ensureButtonExists();
   processResponses();
   setupAutoInterceptors();
   
-  uiInterval = setInterval(() => {
-    if (!isExtensionValid()) {
-      if (uiInterval) clearInterval(uiInterval);
-      return;
-    }
+  setInterval(() => {
     ensureButtonExists();
     processResponses();
   }, 1000);
   
-  mappingInterval = setInterval(() => {
-    if (!isExtensionValid()) {
-      if (mappingInterval) clearInterval(mappingInterval);
-      return;
-    }
+  setInterval(() => {
     fetchMappings();
   }, 3000);
   

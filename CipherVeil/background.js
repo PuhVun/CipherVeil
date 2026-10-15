@@ -75,7 +75,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           changed: changed,
           canAnswerLocally: !!data.can_answer_locally,
           localAnswer: data.local_answer,
-          sanitizedRepresentation: data.sanitized_representation,
           taskType: data.task_type,
           privacyStrategy: data.privacy_strategy,
           privacyExplanation: data.privacy_explanation,

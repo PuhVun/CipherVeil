@@ -55,18 +55,9 @@ class TaskAwareTransformer:
                     # Also create safe property-preserving sanitized prompt if forwarded to AI
                     clean_digits = re.sub(r'\D', '', card_text)
                     brand = CreditCardLocalSolver.identify_brand(clean_digits)
-                    bin_prefix = clean_digits[:6] if len(clean_digits) >= 6 else clean_digits
-                    sanitized_rep = f"Card prefix: {bin_prefix}"
-
-                    # Benchmark specification: Minimally disclosed prefix query
-                    # Example: "Based on the card prefix 411111, which payment network is this card associated with?"
-                    sanitized_prompt = f"Based on the card prefix {bin_prefix}, which payment network is this card associated with?"
-
-                    result["sanitized_representation"] = sanitized_rep
-                    result["sanitized_text"] = sanitized_prompt
-                    result["mappings"][sanitized_rep] = card_text
-                    result["mappings"][f"card prefix {bin_prefix}"] = card_text
-                    result["mappings"][bin_prefix] = card_text
+                    safe_mask = f"{clean_digits[:4]} **** **** {clean_digits[-4:]} ({brand} card)"
+                    result["sanitized_text"] = text.replace(card_text, safe_mask)
+                    result["mappings"][safe_mask] = card_text
                     return result
 
             # B. Age / Date calculation

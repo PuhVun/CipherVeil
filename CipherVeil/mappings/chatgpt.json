@@ -563,6 +563,22 @@
         "340000": "340000000000000"
       },
       "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 411111": "4111111111111111",
+        "card prefix 411111": "4111111111111111",
+        "411111": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4111 **** **** 4444 (Visa card)": "4111 2222 3333 4444"
+      },
+      "config": {}
     }
   ],
   "https://chatgpt.com": [
@@ -688,6 +704,22 @@
         "Card prefix: 340000": "340000000000000",
         "card prefix 340000": "340000000000000",
         "340000": "340000000000000"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 411111": "4111111111111111",
+        "card prefix 411111": "4111111111111111",
+        "411111": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "4111 **** **** 4444 (Visa card)": "4111 2222 3333 4444"
       },
       "config": {}
     }

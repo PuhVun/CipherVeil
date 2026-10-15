@@ -90,12 +90,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // After successful anonymization, fetch the latest mappings and notify content script
         fetchMappings(true).then(mappings => {
           if (sender && sender.tab && sender.tab.id) {
-            chrome.tabs.sendMessage(sender.tab.id, {
-              action: 'updateMappings',
-              mappings: mappings
-            });
+            try {
+              const res = chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'updateMappings',
+                mappings: mappings
+              });
+              if (res && typeof res.catch === 'function') {
+                res.catch(() => {});
+              }
+            } catch (e) {
+              // Tab may have closed or navigated
+            }
           }
-        });
+        }).catch(() => {});
       })
       .catch(error => {
         console.error('Error in background script:', error);

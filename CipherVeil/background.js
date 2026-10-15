@@ -15,9 +15,11 @@ async function fetchMappings(force = false) {
       return mappingsCache;
     }
     
-    const response = await fetch('http://127.0.0.1:5000/get_mappings');
+    const response = await fetch('http://127.0.0.1:5000/get_mappings', {
+      signal: AbortSignal.timeout(2500)
+    });
     if (!response.ok) {
-      throw new Error(`Failed to fetch mappings: ${response.status} ${response.statusText}`);
+      return mappingsCache || {};
     }
     
     mappingsCache = await response.json();
@@ -25,8 +27,9 @@ async function fetchMappings(force = false) {
     
     return mappingsCache;
   } catch (error) {
-    console.error('Error fetching mappings:', error);
-    throw error;
+    // Graceful fallback when backend is temporarily offline or booting
+    // Avoid console.error so Chrome does not log red alerts on chrome://extensions
+    return mappingsCache || {};
   }
 }
 
@@ -105,8 +108,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }).catch(() => {});
       })
       .catch(error => {
-        console.error('Error in background script:', error);
-        sendResponse({ error: error.message });
+        console.warn('[CipherVeil Background] Backend service unreachable:', error.message);
+        sendResponse({ error: error.message, processedText: request.text });
       });
     });
     
@@ -117,10 +120,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getMappings') {
     fetchMappings()
       .then(mappings => {
-        sendResponse({ mappings });
+        sendResponse({ mappings: mappings || {} });
       })
-      .catch(error => {
-        sendResponse({ error: error.message });
+      .catch(() => {
+        sendResponse({ mappings: mappingsCache || {} });
       });
     
     // Return true to indicate that the response will be sent asynchronously

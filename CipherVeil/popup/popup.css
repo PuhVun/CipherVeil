@@ -23,17 +23,31 @@ body {
 }
 
 .logo {
-  width: 50px;
-  height: 50px;
-  margin-bottom: 8px;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  object-fit: cover;
 }
 
 h1 {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 700;
   margin: 0;
-  margin-bottom: 8px;
-  color: #333;
+  margin-bottom: 2px;
+  color: #0f172a;
   text-align: center;
+  letter-spacing: -0.3px;
+}
+
+.tagline {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: #0284c7;
+  text-transform: uppercase;
+  margin-bottom: 6px;
 }
 
 .toggle-container {

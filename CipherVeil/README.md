@@ -1,14 +1,14 @@
-# SSS-Secure-Shielding-Service-
-Protect your privacy while using AI! This browser extension auto-detects and anonymizes personal data before it's sent to LLMs like ChatGPT &amp; Claude—keeping your identity safe without losing AI’s power!
+# CipherVeil
+Protect your privacy while using AI! This browser extension auto-detects and anonymizes personal data before it's sent to LLMs like ChatGPT & Claude—keeping your identity safe without losing AI’s power!
 
 ## Inspiration
 With the increasing reliance on AI-driven language models like ChatGPT, Claude, DeepSeek and Gemini, privacy concerns are at an all-time high. Users often share sensitive data without realizing the risks of exposure. We wanted to create a solution that allows people to benefit from AI while maintaining full control over their personal information.
 
 ## What it does
-SSS (Secure Shielding Service) is a browser extension that anonymizes user data before it is sent to AI model services like www.chatgpt.com, www.claude.ai etc. It detects and replaces personally identifiable information (PII) using an advanced anonymization analyzer. Whether you’re chatting with AI for work, research, or fun, SSS ensures your data stays private across all major browsers and LLMs.
+CipherVeil is a browser extension that anonymizes user data before it is sent to AI model services like www.chatgpt.com, www.claude.ai etc. It detects and replaces personally identifiable information (PII) using an advanced anonymization analyzer. Whether you’re chatting with AI for work, research, or fun, CipherVeil ensures your data stays private across all major browsers and LLMs.
 
 ## How we built it
-We developed SSS using Flask for the backend and integrated 2 methods: "Presidio Analyzer" and "Mistral 3B model on device" to detect and anonymize PII. The system employs Faker to generate realistic fake data for pseudonymization. Mappings of anonymized data are securely stored, allowing for de-anonymization when needed. We designed it to work seamlessly across various AI platforms and LLM models.
+We developed CipherVeil using Flask for the backend and integrated 2 methods: "Presidio Analyzer" and "Mistral 3B model on device" to detect and anonymize PII. The system employs Faker to generate realistic fake data for pseudonymization. Mappings of anonymized data are securely stored, allowing for de-anonymization when needed. We designed it to work seamlessly across various AI platforms and LLM models.
 
 ## Challenges we ran into
 Ensuring accuracy in PII detection: Choosing the Presidio Analyzer to detect different data types effectively.
@@ -27,7 +27,7 @@ Handling different AI models and websites: Adapting the anonymization process to
 - How to fine-tune AI models for effective entity recognition and anonymization.
 - The challenges of cross-browser and cross-platform development for a privacy-focused tool.
 
-## What's next for SSS (Secure Shielding Service) 
+## What's next for CipherVeil
 1. Expanding support for more AI models and platforms beyond ChatGPT, and Claude.
 2. Adding user-defined anonymization rules, allowing even more control over privacy.
 3. Enhancing speed and efficiency to ensure real-time performance without delays.
@@ -36,11 +36,11 @@ Handling different AI models and websites: Adapting the anonymization process to
 
 # SETUP
 
-1. ```git clone https://github.com/Shashankss1205/SSS-Secure-Shielding-Service.git```
-2. ```cd SSS-Secure-Shielding-Service/```
-3. ```python3 flaskBackend.py``` OR ```python flaskBackend.py```
+1. ```git clone https://github.com/PuhVun/CipherVeil.git```
+2. ```cd CipherVeil/CipherVeil```
+3. ```python flaskBackend.py```
 4. Open Chrome
-5. Search for ```chrome://extensions/```
-6. Click on 'Load Unpacked'
-7. Select the folder named "SSS-Secure-Shielding-Service".
+5. Navigate to ```chrome://extensions/```
+6. Turn on "Developer mode" and click 'Load Unpacked'
+7. Select the folder named "CipherVeil".
 8. Open Chatgpt and you are good to go!!

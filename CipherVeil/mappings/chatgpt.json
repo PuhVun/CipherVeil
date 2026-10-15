@@ -556,6 +556,15 @@
       "config": {
         "extensionEnabled": true
       }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Kevin": "pavan"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
     }
   ],
   "https://chatgpt.com": [
@@ -662,6 +671,15 @@
       "mapping": {
         "ijohnson@example.net": "askellad@mail.com",
         "Whitney French": "thorfin song"
+      },
+      "config": {
+        "extensionEnabled": true
+      }
+    },
+    {
+      "anonymization_method": "GENERAL_ANONYMIZATION",
+      "mapping": {
+        "Kevin": "pavan"
       },
       "config": {
         "extensionEnabled": true

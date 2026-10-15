@@ -3,6 +3,50 @@
 // Global variable to store mappings
 let deanonymizationMappings = {};
 let isAutoSending = false;
+let uiInterval = null;
+let mappingInterval = null;
+let domObserver = null;
+let extensionInvalidated = false;
+
+// Check whether the extension context is still valid (avoids errors after extension reload/update)
+function isExtensionValid() {
+  try {
+    return !extensionInvalidated && !!chrome.runtime && !!chrome.runtime.id;
+  } catch {
+    return false;
+  }
+}
+
+// Safely send a message via chrome.runtime, catching invalidation errors
+function safeSendMessage(message, callback) {
+  if (!isExtensionValid()) {
+    cleanupOnInvalidation();
+    return;
+  }
+  try {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        // Silently handle; might be extension invalidated or backend offline
+        if (typeof callback === 'function') callback(null);
+        return;
+      }
+      if (typeof callback === 'function') callback(response);
+    });
+  } catch (err) {
+    if (err?.message?.includes('Extension context invalidated')) {
+      cleanupOnInvalidation();
+    }
+  }
+}
+
+// Cleanup timers and observers when the extension context is invalidated
+function cleanupOnInvalidation() {
+  extensionInvalidated = true;
+  if (uiInterval) { clearInterval(uiInterval); uiInterval = null; }
+  if (mappingInterval) { clearInterval(mappingInterval); mappingInterval = null; }
+  if (domObserver) { domObserver.disconnect(); domObserver = null; }
+  console.warn('CipherVeil: Extension context invalidated. Please refresh the page.');
+}
 
 // Default button markup
 const defaultButtonContent = `
@@ -95,11 +139,12 @@ function setEditorText(editor, newText) {
 
 // Fetch all mappings from background
 function fetchMappings() {
-  chrome.runtime.sendMessage({ action: 'getMappings' }, (response) => {
-    if (chrome.runtime.lastError || !response || response.error) {
-      return;
-    }
-    if (response.mappings) {
+  if (!isExtensionValid()) {
+    cleanupOnInvalidation();
+    return;
+  }
+  safeSendMessage({ action: 'getMappings' }, (response) => {
+    if (response && response.mappings) {
       deanonymizationMappings = response.mappings;
       processResponses();
     }
@@ -107,13 +152,23 @@ function fetchMappings() {
 }
 
 // Listen for mapping updates from background script
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === 'updateMappings' && message.mappings) {
-    deanonymizationMappings = message.mappings;
-    resetDeanonymizationFlags();
-    processResponses();
+if (isExtensionValid()) {
+  try {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (!isExtensionValid()) {
+        cleanupOnInvalidation();
+        return;
+      }
+      if (message.action === 'updateMappings' && message.mappings) {
+        deanonymizationMappings = message.mappings;
+        resetDeanonymizationFlags();
+        processResponses();
+      }
+    });
+  } catch {
+    cleanupOnInvalidation();
   }
-});
+}
 
 // Aggregate all known mappings across the current URL and all sessions
 function getAllMappings(currentUrl) {
@@ -296,18 +351,24 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
   const currentUrl = window.location.href;
   const statusBtn = document.getElementById('prosemirror-api-button');
   
+  if (!isExtensionValid()) {
+    cleanupOnInvalidation();
+    // Fall through to original submission so the user isn't stuck
+    if (typeof submitCallback === 'function') submitCallback();
+    return;
+  }
+  
   if (statusBtn) {
     statusBtn.innerHTML = '<span>Auto-Shielding...</span>';
     statusBtn.style.borderColor = '#38bdf8';
   }
   
-  chrome.runtime.sendMessage({
+  safeSendMessage({
     action: 'processText',
     text: rawText,
     url: currentUrl
   }, (response) => {
-    if (chrome.runtime.lastError || !response || response.error) {
-      console.error('CipherVeil backend error:', response?.error || chrome.runtime.lastError?.message);
+    if (!isExtensionValid() || !response || response.error) {
       if (statusBtn) {
         statusBtn.innerHTML = '<span style="color:#ef4444;">⚠️ Backend Offline</span>';
         statusBtn.style.borderColor = '#ef4444';
@@ -318,7 +379,7 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
           }
         }, 3000);
       }
-      return; // Stop submission if backend is unreachable to prevent leaking secrets!
+      return;
     }
 
     if (response.changed && response.processedText) {
@@ -367,6 +428,7 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
 function setupAutoInterceptors() {
   // 1. Intercept Enter key on the ChatGPT prompt editor
   document.addEventListener('keydown', (e) => {
+    if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     if (isAutoSending) return;
     
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
@@ -399,6 +461,7 @@ function setupAutoInterceptors() {
 
   // 2. Intercept mouse clicks on ChatGPT's Send button
   document.addEventListener('click', (e) => {
+    if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     if (isAutoSending) return;
     
     const sendBtn = e.target.closest(
@@ -472,16 +535,26 @@ function createProcessButton() {
     const text = (editor.textContent || editor.innerText || '').trim();
     if (!text) return;
     
+    if (!isExtensionValid()) {
+      cleanupOnInvalidation();
+      alert('CipherVeil extension was reloaded. Please refresh the page.');
+      return;
+    }
+    
     apiButton.innerHTML = '<span>Shielding...</span>';
     
-    chrome.runtime.sendMessage({
+    safeSendMessage({
       action: 'processText',
       text: text,
       url: window.location.href
     }, (response) => {
       if (response && response.changed) {
         console.log('[CipherVeil Manual] Shielded:', text, '->', response.processedText);
-        setEditorText(editor, response.processedText);
+        try {
+          setEditorText(editor, response.processedText);
+        } catch (err) {
+          console.warn('[CipherVeil] setEditorText error:', err);
+        }
         apiButton.innerHTML = '<span style="color:#4ade80;">✓ Shielded!</span>';
         setTimeout(() => { apiButton.innerHTML = defaultButtonContent; }, 2500);
       } else {
@@ -494,24 +567,27 @@ function createProcessButton() {
 }
 
 function ensureButtonExists() {
+  if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
   if (!document.getElementById('prosemirror-api-button')) {
     createProcessButton();
   }
 }
 
 function startObserver() {
+  if (!isExtensionValid()) return;
   const target = document.body || document.documentElement;
   if (!target) {
     setTimeout(startObserver, 100);
     return;
   }
   
-  const observer = new MutationObserver(() => {
+  domObserver = new MutationObserver(() => {
+    if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     ensureButtonExists();
     processResponses();
   });
   
-  observer.observe(target, {
+  domObserver.observe(target, {
     childList: true,
     subtree: true
   });
@@ -519,17 +595,21 @@ function startObserver() {
 
 // Initial setup
 async function initialize() {
+  if (!isExtensionValid()) return;
+  
   fetchMappings();
   ensureButtonExists();
   processResponses();
   setupAutoInterceptors();
   
-  setInterval(() => {
+  uiInterval = setInterval(() => {
+    if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     ensureButtonExists();
     processResponses();
   }, 1000);
   
-  setInterval(() => {
+  mappingInterval = setInterval(() => {
+    if (!isExtensionValid()) { cleanupOnInvalidation(); return; }
     fetchMappings();
   }, 3000);
   

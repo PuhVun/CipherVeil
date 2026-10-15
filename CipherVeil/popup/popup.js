@@ -156,13 +156,23 @@ function updateSelection(dropdownName, value, isSelected) {
 
 // Update UI for a single dropdown
 function updateSelectionUI(dropdownName) {
-  const selectedContainer = document.getElementById(`selected${dropdownName.charAt(0).toUpperCase() + dropdownName.slice(1)}`);
+  // Look up the correct element ID from the dropdowns config to avoid casing issues
+  // (e.g. "piis" would become "selectedPiis" dynamically, but the HTML has "selectedPIIs")
+  const dd = dropdowns.find(d => d.name === dropdownName);
+  const selectedContainer = dd
+    ? document.getElementById(dd.selectedId)
+    : document.getElementById(`selected${dropdownName.charAt(0).toUpperCase() + dropdownName.slice(1)}`);
   const placeholder = document.querySelector(`#${dropdownName}Box .placeholder`);
+  
+  if (!selectedContainer) {
+    console.warn('CipherVeil: selectedContainer not found for dropdown:', dropdownName);
+    return;
+  }
   
   selectedContainer.innerHTML = '';
   
-  if (state[dropdownName].length > 0) {
-    placeholder.style.display = 'none';
+  if (state[dropdownName] && state[dropdownName].length > 0) {
+    if (placeholder) placeholder.style.display = 'none';
     
     state[dropdownName].forEach(item => {
       const tag = document.createElement('span');
@@ -177,14 +187,17 @@ function updateSelectionUI(dropdownName) {
       selectedContainer.appendChild(tag);
     });
   } else {
-    placeholder.style.display = 'inline';
+    if (placeholder) placeholder.style.display = 'inline';
   }
   
   // Update checkboxes to match state
-  const list = document.getElementById(`${dropdownName}List`);
+  const list = dd
+    ? document.getElementById(dd.listId)
+    : document.getElementById(`${dropdownName}List`);
+  if (!list) return;
   const checkboxes = list.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
-    checkbox.checked = state[dropdownName].includes(checkbox.value);
+    checkbox.checked = state[dropdownName] && state[dropdownName].includes(checkbox.value);
   });
 }
 

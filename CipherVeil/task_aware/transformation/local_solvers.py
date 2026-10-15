@@ -60,12 +60,12 @@ class CreditCardLocalSolver:
         brand = cls.identify_brand(clean)
         is_luhn_valid = cls.luhn_checksum(clean)
         luhn_str = "passes Luhn validity check" if is_luhn_valid else "fails Luhn checksum"
-        bin_prefix = clean[:4] if len(clean) >= 4 else clean
+        bin_prefix = clean[:6] if len(clean) >= 6 else clean
 
         answer = (
-            f"Your card number (starting with **{bin_prefix}**) is a **{brand}** card ({luhn_str}).\n\n"
-            f"🛡️ *Security Notice: This task was answered 100% locally by CipherVeil. "
-            f"Your card number was never transmitted to external AI servers.*"
+            f"Your card (prefix: **{bin_prefix}**) is associated with the **{brand}** payment network ({luhn_str}).\n\n"
+            f"[CipherVeil Privacy Shield: This task was answered 100% locally. "
+            f"Your full card number was never transmitted to external AI servers.]"
         )
 
         return {

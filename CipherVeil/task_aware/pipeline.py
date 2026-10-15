@@ -87,6 +87,7 @@ class TaskAwarePipeline:
             "detected_count": len(detected_entities),
             "can_answer_locally": transformation_result.get("can_answer_locally", False),
             "local_answer": transformation_result.get("local_answer"),
+            "sanitized_representation": transformation_result.get("sanitized_representation"),
             "mappings": transformation_result.get("mappings", {}),
             "validation": validation_result,
             "requires_user_review": requires_review

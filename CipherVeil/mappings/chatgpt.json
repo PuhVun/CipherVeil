@@ -527,6 +527,42 @@
       "config": {
         "extensionEnabled": true
       }
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 411111": "4111111111111111",
+        "card prefix 411111": "4111111111111111",
+        "411111": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 411111": "4111111111111111",
+        "card prefix 411111": "4111111111111111",
+        "411111": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 511111": "5111111111111111",
+        "card prefix 511111": "5111111111111111",
+        "511111": "5111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 340000": "340000000000000",
+        "card prefix 340000": "340000000000000",
+        "340000": "340000000000000"
+      },
+      "config": {}
     }
   ],
   "https://chatgpt.com": [
@@ -616,6 +652,42 @@
       "anonymization_method": "GENERAL_ANONYMIZATION",
       "mapping": {
         "Jonathon": "pavan"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 411111": "4111111111111111",
+        "card prefix 411111": "4111111111111111",
+        "411111": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 411111": "4111111111111111",
+        "card prefix 411111": "4111111111111111",
+        "411111": "4111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 511111": "5111111111111111",
+        "card prefix 511111": "5111111111111111",
+        "511111": "5111111111111111"
+      },
+      "config": {}
+    },
+    {
+      "anonymization_method": "LOCAL_COMPUTATION",
+      "mapping": {
+        "Card prefix: 340000": "340000000000000",
+        "card prefix 340000": "340000000000000",
+        "340000": "340000000000000"
       },
       "config": {}
     }

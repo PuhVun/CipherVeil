@@ -325,14 +325,19 @@ async function autoAnonymizeAndSend(editor, rawText, submitCallback) {
       console.log('[CipherVeil] Shielded prompt:', rawText, '->', response.processedText);
       setEditorText(editor, response.processedText);
       if (statusBtn) {
-        statusBtn.innerHTML = '<span style="color:#4ade80;">✓ Auto-Shielded!</span>';
-        statusBtn.style.borderColor = '#4ade80';
+        if (response.canAnswerLocally) {
+          statusBtn.innerHTML = '<span style="color:#38bdf8;">🛡️ Local Shield: Card Prefix Protected!</span>';
+          statusBtn.style.borderColor = '#38bdf8';
+        } else {
+          statusBtn.innerHTML = '<span style="color:#4ade80;">✓ Auto-Shielded!</span>';
+          statusBtn.style.borderColor = '#4ade80';
+        }
         setTimeout(() => {
           if (statusBtn) {
             statusBtn.innerHTML = defaultButtonContent;
             statusBtn.style.borderColor = '#475569';
           }
-        }, 2500);
+        }, 3500);
       }
     } else {
       if (statusBtn) {
